@@ -295,6 +295,20 @@
   }
   .scan-ean-btn-full:active{ background:var(--sap-bar-dk); }
 
+  .header-wizard-btn{
+    width:100%; background:#fff; color:var(--sap-bar-dk); border:1.5px dashed var(--sap-field-border);
+    border-radius:6px; font-weight:600; display:flex; align-items:center; justify-content:center;
+    transition:all .18s ease;
+  }
+  .header-wizard-btn:active{ background:var(--sap-toolbar); }
+  .header-wizard-btn.compact{ height:32px; font-size:12.5px; letter-spacing:.2px; gap:6px; font-weight:600; }
+  .header-wizard-btn.big{
+    flex-direction:column; gap:6px; min-height:92px; padding:16px;
+    font-size:13.5px; letter-spacing:.2px; border-radius:8px; border-style:dashed; color:var(--muted);
+  }
+  .header-wizard-btn.big .hw-icon{ font-size:24px; opacity:.75; }
+  .header-wizard-btn.compact .hw-icon{ font-size:13px; opacity:.7; }
+
   .entry-choice-btn{
     background:#fff; border:2px solid var(--sap-bar); border-radius:6px;
     color:var(--sap-bar-dk); font-weight:700; font-size:12.5px; text-transform:uppercase;
@@ -316,6 +330,13 @@
   .entry-choice-title{
     text-align:center; font-size:14px; font-weight:800; color:var(--sap-bar-dk); margin-bottom:14px;
   }
+  .entry-choice-x{
+    position:absolute; top:-10px; right:-10px; width:28px; height:28px; border-radius:50%;
+    background:#fff; border:1.5px solid var(--sap-field-border); color:var(--muted);
+    font-size:13px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+  }
+  .entry-choice-x:active{ background:var(--sap-toolbar); }
   .entry-choice-grid{
     display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;
   }
@@ -407,7 +428,8 @@
 
   .pin-gate{
     position:fixed; inset:0; z-index:500; background:var(--sap-bar);
-    display:flex; align-items:center; justify-content:center; padding:20px;
+    display:flex; align-items:flex-start; justify-content:center; padding:20px;
+    padding-top:12vh;
   }
   .pin-gate-box{
     display:flex; flex-direction:column; align-items:center; text-align:center;
@@ -453,46 +475,53 @@
   <section class="card">
     <h2>Vendita — dati testata</h2>
     <div class="card-body" style="padding:6px 14px 8px;">
-      <div class="sap-row-triple triple-favor-last">
-        <div class="pair-col">
-          <label for="inAgente" class="pair-label">Agente</label>
-          <input id="inAgente" type="text" list="agentiList" placeholder="es. Bonito" title="Elenco parziale d'esempio: puoi digitare liberamente.">
-          <datalist id="agentiList"></datalist>
-        </div>
-        <div class="pair-col">
-          <label for="inCommittente" class="pair-label">Committente</label>
-          <select id="inCommittente" disabled>
-            <option value="">— prima l'agente —</option>
-          </select>
-        </div>
-        <div class="pair-col">
-          <label for="inDestinazione" class="pair-label">Destin. Merci</label>
-          <select id="inDestinazione" disabled>
-            <option value="">— prima il committente —</option>
-          </select>
-        </div>
-      </div>
-      <div style="padding:6px 0 2px;">
-        <button type="button" id="btnHeaderWizard" class="scan-ean-btn-full">📋 Compila testata guidata</button>
-      </div>
-      <div class="sap-row-triple">
-        <div class="pair-col">
-          <label for="numOrdine" class="pair-label">Nr. Ordine</label>
-          <input id="numOrdine" type="text" placeholder="es. 0019071" class="codefont">
-        </div>
-        <div class="pair-col">
-          <label for="dataOrdine" class="pair-label">Data Ordine</label>
-          <input id="dataOrdine" type="date">
-        </div>
-        <div class="pair-col">
-          <label for="dataConsegna" class="pair-label">Data Consegna Richiesta *</label>
-          <input id="dataConsegna" type="date">
-        </div>
-      </div>
-      <div class="hint" id="hintConsegna" style="grid-column:1;"></div>
       <div class="sap-row">
-        <label for="note">Note Ordine</label>
-        <input id="note" type="text" placeholder="es. PP0334.1: 1 bobina + etichetta">
+        <label for="inAgente">Agente</label>
+        <input id="inAgente" type="text" list="agentiList" placeholder="es. Bonito" title="Elenco parziale d'esempio: puoi digitare liberamente.">
+        <datalist id="agentiList"></datalist>
+      </div>
+      <div style="padding:8px 0 2px;">
+        <button type="button" id="btnHeaderWizard" class="header-wizard-btn compact">
+          <span class="hw-icon">📋</span><span class="hw-label">Compila Dati Ordine</span>
+        </button>
+      </div>
+
+      <div id="testataFieldsWrap" style="display:none;">
+        <div class="sap-row-triple">
+          <div class="pair-col">
+            <label for="inCommittente" class="pair-label">Committente</label>
+            <select id="inCommittente" disabled>
+              <option value="">— prima l'agente —</option>
+            </select>
+          </div>
+          <div class="pair-col">
+            <label for="inDestinazione" class="pair-label">Destin. Merci</label>
+            <select id="inDestinazione" disabled>
+              <option value="">— prima il committente —</option>
+            </select>
+          </div>
+          <div class="pair-col">
+            <label for="numOrdine" class="pair-label">Nr. Ordine</label>
+            <input id="numOrdine" type="text" placeholder="es. 0019071" class="codefont">
+          </div>
+        </div>
+        <div class="sap-row-triple">
+          <div class="pair-col">
+            <label for="dataOrdine" class="pair-label">Data Ordine</label>
+            <input id="dataOrdine" type="date">
+          </div>
+          <div class="pair-col">
+            <label for="dataConsegna" class="pair-label">Data Consegna Richiesta *</label>
+            <input id="dataConsegna" type="date">
+          </div>
+          <div class="pair-col"></div>
+        </div>
+        <div class="hint" id="hintConsegna" style="grid-column:1;"></div>
+
+        <div class="sap-row">
+          <label for="note">Note Ordine</label>
+          <input id="note" type="text" placeholder="es. PP0334.1: 1 bobina + etichetta">
+        </div>
       </div>
     </div>
   </section>
@@ -500,7 +529,7 @@
   <section class="card">
     <h2>Aggiungi posizione</h2>
     <div style="padding:12px;">
-      <button type="button" id="btnAddPositions" class="scan-ean-btn-full">+ Aggiungi posizioni</button>
+      <button type="button" id="btnAddPositions" class="header-wizard-btn compact"><span class="hw-icon">➕</span><span>Aggiungi posizioni</span></button>
     </div>
   </section>
 
@@ -565,7 +594,8 @@
 </div>
 
 <div id="entryChoiceOverlay" class="entry-choice-overlay">
-  <div class="entry-choice-box">
+  <div class="entry-choice-box" style="position:relative;">
+    <button type="button" id="btnEntryChoiceX" class="entry-choice-x" title="Chiudi">✕</button>
     <div class="entry-choice-title">Aggiungi posizione</div>
     <div class="entry-choice-grid">
       <button type="button" id="choiceManualBtn" class="entry-choice-btn">
@@ -623,7 +653,7 @@
 </div>
 
 <script>
-const APP_VERSION = "6.8";
+const APP_VERSION = "7.5";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 
 // ---- Accesso con PIN: Admin vede tutto e sceglie l'agente; gli altri PIN bloccano
@@ -901,6 +931,7 @@ function closeEntryChoice(){
 }
 document.getElementById('btnAddPositions').addEventListener('click', openEntryChoice);
 document.getElementById('btnFinishEntry').addEventListener('click', closeEntryChoice);
+document.getElementById('btnEntryChoiceX').addEventListener('click', closeEntryChoice);
 document.getElementById('choiceManualBtn').addEventListener('click', ()=>{
   closeEntryChoice();
   lastEntryMode = 'manual';
@@ -1264,7 +1295,12 @@ populateAgentiDatalist();
 document.getElementById('dataOrdine').value = todayISO();
 
 function clearHeader(){
-  document.getElementById('inAgente').value = '';
+  const agenteInput = document.getElementById('inAgente');
+  // Se l'agente è bloccato dal PIN (campo disabilitato), NON lo svuotiamo: altrimenti l'utente
+  // non avrebbe più modo di ripopolarlo (il campo resta disabilitato, non può riscriverlo a mano).
+  if(!agenteInput.disabled){
+    agenteInput.value = '';
+  }
   document.getElementById('inCommittente').innerHTML = '<option value="">— inserisci prima l\'agente —</option>';
   document.getElementById('inCommittente').disabled = true;
   document.getElementById('inDestinazione').innerHTML = '<option value="">— scegli prima il committente —</option>';
@@ -1278,7 +1314,12 @@ function clearHeader(){
   selectedRow = null;
   rows = [];
   renderRows();
+  if(agenteInput.value.trim()){
+    // l'agente (bloccato dal PIN) resta impostato: ripopola subito i committenti disponibili per lui
+    refreshCommittenteOptions();
+  }
   showToast("Tutto svuotato: testata e posizioni.");
+  updateHeaderWizardState();
 }
 document.getElementById('btnClearHeader').addEventListener('click', ()=>{
   if(!confirm("Svuotare tutto (testata e tutte le posizioni inserite)?")) return;
@@ -1370,6 +1411,21 @@ function hwPopulateDestinazione(){
 }
 document.getElementById('hwCommittente').addEventListener('change', hwPopulateDestinazione);
 
+// Mostra il box grande (invito a compilare) finché la testata non è mai stata compilata,
+// poi passa al pulsante normale con sotto i campi visibili e modificabili singolarmente.
+function updateHeaderWizardState(){
+  const btn = document.getElementById('btnHeaderWizard');
+  const wrap = document.getElementById('testataFieldsWrap');
+  const compiled = !!document.getElementById('inCommittente').value;
+  if(compiled){
+    btn.classList.remove('big'); btn.classList.add('compact');
+    wrap.style.display = 'block';
+  } else {
+    btn.classList.remove('compact'); btn.classList.add('big');
+    wrap.style.display = 'none';
+  }
+}
+
 function openHeaderWizard(){
   const agente = document.getElementById('inAgente').value.trim();
   if(!agente){
@@ -1414,6 +1470,7 @@ document.getElementById('hwConfirm').addEventListener('click', ()=>{
   document.getElementById('dataConsegna').dispatchEvent(new Event('change', {bubbles:true}));
 
   closeHeaderWizard();
+  updateHeaderWizardState();
   showToast('Testata compilata.');
 });
 
@@ -1675,6 +1732,7 @@ document.getElementById('btnOpenMail').addEventListener('click', (e)=>{
 });
 
 document.getElementById('dbStat').innerHTML = DB.length + " articoli in catalogo · v. " + APP_VERSION + " del " + APP_VERSION_DATE + " · Aggiornabile su richiesta o per assistenza via mail a <a href=\"mailto:paolobigoni@polypool.it?subject=" + encodeURIComponent('Aggiornamento/Richiesta di assistenza') + "\" style=\"color:inherit;\">paolobigoni@polypool.it</a>";
+updateHeaderWizardState();
 
 if(typeof JSZip === 'undefined'){
   const warn = document.createElement('div');
