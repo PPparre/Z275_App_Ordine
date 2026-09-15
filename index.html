@@ -202,18 +202,22 @@
   }
   table.postable tbody tr:nth-child(even){ background:#f7f9fb; }
   table.postable tbody tr.tr-warn{ background:#fdf1ee; }
-  .postable col.col-pos{ width:8%; }
-  .postable col.col-thumb{ width:13%; }
-  .postable col.col-code{ width:17%; }
+  .postable col.col-pos{ width:6%; }
+  .postable col.col-thumb{ width:12%; }
+  .postable col.col-code{ width:23%; }
   .postable col.col-desc{ width:auto; }
-  .postable col.col-qty{ width:14%; }
-  .postable col.col-rm{ width:8%; }
+  .postable col.col-qty{ width:17%; }
   .postable .row-thumb{
     width:32px; height:32px; border-radius:5px; background:#f0f2f4;
     display:flex; align-items:center; justify-content:center; font-size:15px; overflow:hidden;
   }
   .postable .row-thumb img{ width:100%; height:100%; object-fit:contain; }
-  .postable .qty-edit{ width:100%; max-width:56px; padding:4px 5px; border:1px solid var(--sap-field-border); border-radius:2px; font-size:12px; }
+  .postable .qty-edit{ width:100%; max-width:56px; padding:4px 5px; border:1px solid var(--sap-field-border); border-radius:2px; font-size:12px; text-align:center; }
+  .postable .qty-rm-cell{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .postable .rm-btn-small{
+    background:none; border:none; color:var(--brand-red); font-size:10.5px; font-weight:700;
+    padding:1px 4px;
+  }
   .meta-line{ font-size:10.5px; color:var(--sap-label); margin-top:3px; line-height:1.4; }
   .meta-line b{ color:var(--muted); font-weight:600; }
   .pos-badge{ font-size:10px; padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap; display:inline-block; margin-top:2px; }
@@ -297,18 +301,18 @@
   .scan-ean-btn-full:active{ background:var(--sap-bar-dk); }
 
   .header-wizard-btn{
-    width:100%; background:#fff; color:var(--sap-bar-dk); border:1.5px dashed var(--sap-field-border);
-    border-radius:6px; font-weight:600; display:flex; align-items:center; justify-content:center;
+    width:100%; background:#e2eaf1; color:var(--sap-bar-dk); border:1.5px solid var(--sap-bar);
+    border-radius:6px; font-weight:700; display:flex; align-items:center; justify-content:center;
     transition:all .18s ease;
   }
-  .header-wizard-btn:active{ background:var(--sap-toolbar); }
-  .header-wizard-btn.compact{ height:32px; font-size:12.5px; letter-spacing:.2px; gap:6px; font-weight:600; }
+  .header-wizard-btn:active{ background:#d2dfea; }
+  .header-wizard-btn.compact{ height:32px; font-size:12.5px; letter-spacing:.2px; gap:6px; font-weight:700; }
   .header-wizard-btn.big{
     flex-direction:column; gap:6px; min-height:92px; padding:16px;
-    font-size:13.5px; letter-spacing:.2px; border-radius:8px; border-style:dashed; color:var(--muted);
+    font-size:13.5px; letter-spacing:.2px; border-radius:8px; color:var(--sap-bar-dk);
   }
-  .header-wizard-btn.big .hw-icon{ font-size:24px; opacity:.75; }
-  .header-wizard-btn.compact .hw-icon{ font-size:13px; opacity:.7; }
+  .header-wizard-btn.big .hw-icon{ font-size:26px; opacity:.9; }
+  .header-wizard-btn.compact .hw-icon{ font-size:13px; opacity:.85; }
 
   .entry-choice-btn{
     background:#fff; border:2px solid var(--sap-bar); border-radius:6px;
@@ -319,14 +323,22 @@
   .entry-choice-btn:active{ background:var(--sap-toolbar); }
   .entry-choice-icon{ font-size:22px; }
 
+  .barcode-ambiguity-btn{
+    width:100%; flex-direction:row; justify-content:space-between; align-items:center;
+    padding:12px 14px; text-transform:none;
+  }
+
   .entry-choice-overlay{
     display:none; position:fixed; inset:0; z-index:210; background:rgba(16,35,61,.55);
     align-items:center; justify-content:center; padding:20px;
   }
   .entry-choice-overlay.show{ display:flex; }
   #headerWizardOverlay{
-    align-items:flex-start; padding-top:6vh;
+    align-items:flex-start; padding-top:2vh;
     overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  #headerWizardOverlay .entry-choice-box{
+    max-height:96vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
   .entry-choice-box{
     background:#eef0f3; border-radius:10px; padding:20px; width:100%; max-width:340px;
@@ -430,6 +442,10 @@
   .qty-prompt-qbmwarn{
     background:#fdeceb; color:var(--warn); border:1px solid #f2c2bd; border-radius:6px;
     padding:8px 10px; font-size:11.5px; font-weight:600; text-align:left; margin-bottom:12px; line-height:1.35;
+  }
+  .qty-prompt-meternote{
+    background:#e2eaf1; color:var(--sap-bar-dk); border:1px solid #b9cbdb; border-radius:6px;
+    padding:8px 10px; font-size:11.5px; font-weight:500; text-align:left; margin-bottom:10px; line-height:1.35;
   }
   .qty-prompt-label{
     display:block; font-size:11px; color:var(--sap-label); font-weight:700;
@@ -584,29 +600,41 @@
 
 <div id="headerWizardOverlay" class="entry-choice-overlay">
   <div class="entry-choice-box" style="max-width:340px; text-align:left;">
-    <div class="entry-choice-title" style="text-align:center;">Compila testata</div>
+    <div class="entry-choice-title" style="text-align:center; margin-bottom:8px;">Compila testata</div>
 
     <label class="qty-prompt-label" style="text-align:left;">Committente</label>
-    <select id="hwCommittente" class="qty-prompt-codeinput" style="text-align:left; font-weight:600; margin-bottom:10px;"></select>
+    <select id="hwCommittente" class="qty-prompt-codeinput" style="text-align:left; font-weight:600; margin-bottom:6px; padding:7px 8px;"></select>
 
     <label class="qty-prompt-label" style="text-align:left;">Destinazione Merci</label>
-    <select id="hwDestinazione" class="qty-prompt-codeinput" style="text-align:left; font-weight:600; margin-bottom:10px;"></select>
+    <select id="hwDestinazione" class="qty-prompt-codeinput" style="text-align:left; font-weight:600; margin-bottom:6px; padding:7px 8px;"></select>
 
     <label class="qty-prompt-label" style="text-align:left;">Nr. Ordine</label>
-    <input id="hwNumOrdine" type="text" class="qty-prompt-codeinput codefont" style="text-align:left; margin-bottom:10px;">
+    <input id="hwNumOrdine" type="text" class="qty-prompt-codeinput codefont" style="text-align:left; margin-bottom:6px; padding:7px 8px;">
 
     <label class="qty-prompt-label" style="text-align:left;">Data Ordine</label>
-    <input id="hwDataOrdine" type="date" class="qty-prompt-codeinput" style="text-align:left; margin-bottom:10px;">
+    <input id="hwDataOrdine" type="date" class="qty-prompt-codeinput" style="text-align:left; margin-bottom:6px; padding:7px 8px;">
 
     <label class="qty-prompt-label" style="text-align:left;">Data Consegna Richiesta *</label>
-    <input id="hwDataConsegna" type="date" class="qty-prompt-codeinput" style="text-align:left; margin-bottom:6px;">
+    <input id="hwDataConsegna" type="date" class="qty-prompt-codeinput" style="text-align:left; margin-bottom:4px; padding:7px 8px;">
 
-    <div class="hint" id="hwHint" style="text-align:left; margin-bottom:8px; min-height:14px;"></div>
+    <div class="hint" id="hwHint" style="text-align:left; margin-bottom:4px; min-height:14px;"></div>
 
     <div class="qty-prompt-actions">
       <button type="button" id="hwCancel" class="btn-ghost">Annulla</button>
       <button type="button" id="hwConfirm" class="btn-red">Compila</button>
     </div>
+  </div>
+</div>
+
+<div id="barcodeAmbiguityOverlay" class="entry-choice-overlay">
+  <div class="entry-choice-box">
+    <div class="entry-choice-title">⚠ Codice a barre ambiguo</div>
+    <div class="qty-prompt-desc" style="margin-bottom:12px;">
+      Questo EAN corrisponde a più articoli con imballo diverso (es. bobine di lunghezza diversa).
+      Scegli quello giusto:
+    </div>
+    <div id="barcodeAmbiguityOptions" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;"></div>
+    <button type="button" id="barcodeAmbiguityCancel" class="btn-ghost" style="width:100%;">Annulla</button>
   </div>
 </div>
 
@@ -662,6 +690,10 @@
         <div class="qty-prompt-infoval codefont" id="qtyPromptImb">—</div>
       </div>
     </div>
+    <div class="qty-prompt-meternote" id="qtyPromptMeterNote" style="display:none;">
+      <b>Cavo venduto a bobina:</b> la quantità che scrivi qui sotto è il <b>numero di bobine</b>,
+      non i metri — l'app moltiplica da sola per l'imballo indicato sopra.
+    </div>
     <div class="qty-prompt-qbmwarn" id="qtyPromptQbmWarn" style="display:none;"></div>
     <label for="qtyPromptInput" class="qty-prompt-label">Quantità da inserire</label>
     <input id="qtyPromptInput" type="number" min="0" step="1" class="qty-prompt-input" inputmode="numeric">
@@ -673,7 +705,7 @@
 </div>
 
 <script>
-const APP_VERSION = "9.0";
+const APP_VERSION = "9.8";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 
 // ---- Accesso con PIN: Admin vede tutto e sceglie l'agente; gli altri PIN bloccano
@@ -721,9 +753,15 @@ const FIRST_ROW = 8;
 const LAST_ROW = 201;
 const AGENTI_TABLE = [{"codCM": 1004131, "societa": "RIALTO", "codDM": 1002396, "destMerci": "IL GIGANTE Bologna", "codPV": "PV064", "agente": "Bonito"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1022086, "destMerci": "IL GIGANTE Reggio Emilia", "codPV": "PV021", "agente": "Bonito"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1022697, "destMerci": "IL GIGANTE Chivasso", "codPV": "PV022", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1012388, "destMerci": "IL GIGANTE Gaglianico", "codPV": "PV054", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1018001, "destMerci": "IL GIGANTE Isola d'Asti", "codPV": "PV051", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1004865, "destMerci": "IL GIGANTE La Loggia", "codPV": "PV063", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1012232, "destMerci": "IL GIGANTE Manta di Saluzzo", "codPV": "PV055", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 6000052, "destMerci": "IL GIGANTE Moncrivello", "codPV": "PV068", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1011108, "destMerci": "IL GIGANTE Nizza Monferrato", "codPV": "PV057", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1001721, "destMerci": "IL GIGANTE Rivalta di Torino", "codPV": "PV046", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1013101, "destMerci": "IL GIGANTE Rivarolo Canavese", "codPV": "PV053", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1020419, "destMerci": "IL GIGANTE Torino Cigna", "codPV": "PV050", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1029080, "destMerci": "IL GIGANTE Torino Marche", "codPV": "PV023", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1008516, "destMerci": "IL GIGANTE Torino Mortara", "codPV": "PV058", "agente": "Minore"}, {"codCM": 1004131, "societa": "RIALTO", "codDM": 1040902, "destMerci": "IL MIO GIGANTE Vigone", "codPV": "PV074", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1041692, "destMerci": "TRONY Altopascio (MARCHETTI)", "codPV": "ALT", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1013549, "destMerci": "TRONY Barberino Val d'Elsa (BIANCHI)", "codPV": "BAR", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1013448, "destMerci": "TRONY Borgo San Lorenzo (BIANCHI)", "codPV": "BSL", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1014006, "destMerci": "TRONY Cecina (BELLANTI)", "codPV": "B04", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1049079, "destMerci": "TRONY Cortona (DLS)", "codPV": "D02", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1013418, "destMerci": "TRONY Empoli (BELLANTI)", "codPV": "B06", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1047626, "destMerci": "TRONY Firenze Erbosa (BELLANTI)", "codPV": "B10", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1013895, "destMerci": "TRONY Firenze Pistoiese (BELLANTI)", "codPV": "B05", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Foiano della Chiana (DLS)", "codPV": "D01", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1027966, "destMerci": "TRONY Navacchio (BELLANTI)", "codPV": "B07", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1041772, "destMerci": "TRONY Orbetello (BIANCHI)", "codPV": "ORB", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1021435, "destMerci": "TRONY Pietrasanta (BELLANTI)", "codPV": "B08", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1013986, "destMerci": "TRONY Pontassieve Sieci (BELLANTI)", "codPV": "B03", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1014402, "destMerci": "TRONY Scandicci (BELLANTI)", "codPV": "B01", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1041663, "destMerci": "TRONY Siena (BIANCHI)", "codPV": "SIE", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Spoleto (DLS)", "codPV": "D03", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Subbiano (BIANCHI)", "codPV": "SUB", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1043448, "destMerci": "TRONY Viareggio (BELLANTI)", "codPV": "B09", "agente": "Donelli"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1051721, "destMerci": "TRONY (Mini) Desenzano (ROASCHI)", "codPV": "ROA", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1051720, "destMerci": "TRONY (Mini) Salò (CENTRO COPRE D GARDA)", "codPV": "SAL", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034746, "destMerci": "TRONY Borgosatollo (CENTRO CASA)", "codPV": "BOR", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Breno (GELPI)", "codPV": "BRN", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034679, "destMerci": "TRONY Brescia Tadini (BRESCIA TRADE)", "codPV": "BRE", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1033375, "destMerci": "TRONY Capriolo (B&B TRADE)", "codPV": "CAP", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1051385, "destMerci": "TRONY Castegnato (MARCHINA)", "codPV": "CST", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1016597, "destMerci": "TRONY Desenzano Vele (DESENZANO TRADE)", "codPV": "DES", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1051556, "destMerci": "TRONY Esine (GELPI)", "codPV": "ESI", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1036471, "destMerci": "TRONY Gussago (ELETTROPIÙ)", "codPV": "GUS", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1036472, "destMerci": "TRONY Manerbio (SALDINI)", "codPV": "MAN", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034677, "destMerci": "TRONY Mazzano (DESENZANO TRADE)", "codPV": "MOL", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1033533, "destMerci": "TRONY Montichiari (MONTICHIARI TRADE)", "codPV": "MON", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034143, "destMerci": "TRONY Orzinuovi (COPRE DUE)", "codPV": "ORZ", "agente": "Lovati"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Acqui Terme (F.LLI NOBILE)", "codPV": "ACQ", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Alessandria (F.LLI NOBILE)", "codPV": "ALE", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1051073, "destMerci": "TRONY Cambiano (GALLENCA)", "codPV": "CAM", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034897, "destMerci": "TRONY Caselle Torinese (GALLENCA)", "codPV": "CSL", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1003107, "destMerci": "TRONY Chieri (GALLENCA)", "codPV": "CHI", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1041824, "destMerci": "TRONY Collegno (GALLENCA)", "codPV": "COL", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Moncalieri 1 Vittime BO (GALLENCA)", "codPV": "TVB", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1036302, "destMerci": "TRONY Moncalieri 2 CC Porte (GALLENCA)", "codPV": "MNR", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Nichelino (GALLENCA)", "codPV": "NIC", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Quarona (MILANO TRADE)", "codPV": "QUA", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1044873, "destMerci": "TRONY Torino Botticelli (GALLENCA)", "codPV": "BOT", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Torino Gorizia (GALLENCA)", "codPV": "GOR", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Torino Mombarcaro (GALLENCA)", "codPV": "MBC", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Torino Mombasiglio (GALLENCA)", "codPV": "MBS", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Torino Mondo Juve (GALLENCA)", "codPV": "JUV", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1033609, "destMerci": "TRONY Torino Parco Dora (GALLENCA)", "codPV": "TO4", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Torino San Donato (GALLENCA)", "codPV": "SDO", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Torino Vercelli (GALLENCA)", "codPV": "TVC", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1046038, "destMerci": "TRONY Vinovo (GALLENCA)", "codPV": "VIN", "agente": "Minore"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1047931, "destMerci": "SINERGY Brignano GdA (LAZZARINI)", "codPV": "BGA", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Alzano (ROTA GIANFRANCO)", "codPV": "ALZ", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1036816, "destMerci": "TRONY Bagnolo (COPRE DUE)", "codPV": "BAG", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Bergamo Bellafino (B&B TRADE)", "codPV": "BG2", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1031866, "destMerci": "TRONY Bergamo Maccarini (MAMMOLEGGI)", "codPV": "BG1", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034528, "destMerci": "TRONY Cassano d'Adda (LAZZARINI)", "codPV": "CAS", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034144, "destMerci": "TRONY Dalmine (RIGAMONTI)", "codPV": "DAL", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1013857, "destMerci": "TRONY Nembro (ROTA GIANFRANCO)", "codPV": "NEM", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Osio Sopra (RIGAMONTI)", "codPV": "OSI", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1033532, "destMerci": "TRONY Treviglio (LAZZARINI)", "codPV": "TRE", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1033355, "destMerci": "TRONY Zogno Donatori (CAPELLI ANGELO)", "codPV": "ZOG", "agente": "Sacchetti"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1033340, "destMerci": "TRONY Affi (DESENZANO TRADE)", "codPV": "AFF", "agente": "Sasso"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1014241, "destMerci": "TRONY Arco (LEONARDELLI)", "codPV": "L02", "agente": "Sasso"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1014023, "destMerci": "TRONY Asola (S.E.A.)", "codPV": "ASO", "agente": "Sasso"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034136, "destMerci": "TRONY Bolzano (LEONARDELLI)", "codPV": "L06", "agente": "Sasso"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034127, "destMerci": "TRONY Borgo Valsugana (LEONARDELLI)", "codPV": "L03", "agente": "Sasso"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034137, "destMerci": "TRONY Bressanone (LEONARDELLI)", "codPV": "L05", "agente": "Sasso"}, {"codCM": 9092041, "societa": "COPRE", "codDM": 1034126, "destMerci": "TRONY Pergine Valsugana (LEONARDELLI)", "codPV": "L01", "agente": "Sasso"}, {"codCM": 9092041, "societa": "COPRE", "codDM": "", "destMerci": "TRONY Rovereto (LEONARDELLI)", "codPV": "L04", "agente": "Sasso"}]; // {codCM, societa, codDM, destMerci, codPV, agente}
 
-// Indice EAN -> articolo catalogo, per la scansione fotocamera
+// Indice EAN -> articoli catalogo (può essere più di uno: es. cavi con/senza QBM che
+// condividono lo stesso EAN pur avendo bobine di lunghezza diversa), per la scansione fotocamera
 const BARCODE_INDEX = {};
-DB.forEach(e => { if(e.barcode) BARCODE_INDEX[String(e.barcode).trim()] = e; });
+DB.forEach(e => {
+  if(!e.barcode) return;
+  const key = String(e.barcode).trim();
+  if(!BARCODE_INDEX[key]) BARCODE_INDEX[key] = [];
+  BARCODE_INDEX[key].push(e);
+});
 
 // Gruppi di articoli con/senza suffisso "QBM": stesso cavo, ma bobine di lunghezza diversa
 // (es. PP0334.1 imballo 300m vs PP0334.1QBM imballo 100m). Usato per avvisare l'agente quando
@@ -739,12 +777,16 @@ function qbmWarningFor(match){
   const codeUp = String(match.code).toUpperCase();
   const canon = codeUp.replace(/QBM/g, '');
   const siblings = QBM_GROUPS[canon] || [];
-  const other = siblings.find(s => String(s.code).toUpperCase() !== codeUp && s.imb !== match.imb);
+  const other = siblings.find(s => String(s.code).toUpperCase() !== codeUp);
   if(!other) return null;
   const thisIsQbm = codeUp.includes('QBM');
-  return `⚠ Attenzione bobina: questo è il codice ${thisIsQbm ? 'QBM' : 'senza QBM'} `
-    + `(imballo ${match.imb} ${match.um}), esiste anche ${thisIsQbm ? 'senza QBM' : 'con QBM'} `
-    + `con imballo ${other.imb} ${other.um} (${other.code}) — verifica di aver scelto quello giusto prima di confermare la quantità.`;
+  const sameImb = other.imb === match.imb;
+  const imbNote = sameImb
+    ? `stesso imballo (${match.imb} ${match.um}), ma la bobina QBM ha un diametro più piccolo`
+    : `imballo diverso: ${other.imb} ${other.um} invece di ${match.imb} ${match.um}`;
+  return `⚠ Attenzione bobina: questo è il codice ${thisIsQbm ? 'QBM' : 'senza QBM'}, `
+    + `esiste anche ${thisIsQbm ? 'senza QBM' : 'con QBM'} (${other.code}) — ${imbNote}. `
+    + `Verifica di aver scelto quello giusto prima di confermare la quantità.`;
 }
 
 let rows = []; // {code, qtyInput, cli, match, qtyFinal, needsMeters}
@@ -949,7 +991,20 @@ function openEntryChoice(){
 function closeEntryChoice(){
   document.getElementById('entryChoiceOverlay').classList.remove('show');
 }
-document.getElementById('btnAddPositions').addEventListener('click', openEntryChoice);
+function headerIsComplete(){
+  const { agente, committente, dest, numOrd, dOrdISO, dConsISO } = readHeaderFormData();
+  if(!agente || !committente || !dest || !numOrd || !dOrdISO || !dConsISO) return false;
+  if(dConsISO <= dOrdISO) return false;
+  if(!isBusinessDay(dConsISO)) return false;
+  return true;
+}
+document.getElementById('btnAddPositions').addEventListener('click', ()=>{
+  if(!headerIsComplete()){
+    alert("Completa prima tutti i dati della testata (Agente, Committente, Destinazione, N. Ordine, Data Ordine e Data Consegna Richiesta) prima di poter aggiungere articoli.");
+    return;
+  }
+  openEntryChoice();
+});
 document.getElementById('btnFinishEntry').addEventListener('click', closeEntryChoice);
 document.getElementById('btnEntryChoiceX').addEventListener('click', closeEntryChoice);
 document.getElementById('choiceManualBtn').addEventListener('click', ()=>{
@@ -965,16 +1020,46 @@ document.getElementById('choiceScanBtn').addEventListener('click', ()=>{
 
 function handleScannedCode(code){
   if(!scanActive || !code) return;
-  const match = BARCODE_INDEX[code.trim()];
+  const matches = BARCODE_INDEX[code.trim()];
   const hint = document.getElementById('scanHint');
-  if(match){
+  if(matches && matches.length === 1){
     scanActive = false;
     closeScanner();
-    openQtyPrompt(match);
+    openQtyPrompt(matches[0]);
+  } else if(matches && matches.length > 1){
+    scanActive = false;
+    closeScanner();
+    openBarcodeAmbiguity(matches);
   } else {
     hint.textContent = 'EAN ' + code + ' non trovato nel catalogo — continuo a cercare…';
   }
 }
+
+// ---- Disambiguazione EAN doppio: alcuni cavi (es. versione normale e QBM) condividono lo
+//      stesso codice a barre pur avendo bobine di lunghezza diversa. Invece di scegliere in
+//      automatico (rischio di errore fino a 3x sulla metratura), chiediamo sempre all'agente
+//      quale dei due articoli è quello giusto. ----
+function openBarcodeAmbiguity(matches){
+  const box = document.getElementById('barcodeAmbiguityOptions');
+  box.innerHTML = matches.map((m, i) => `
+    <button type="button" class="entry-choice-btn barcode-ambiguity-btn" data-idx="${i}">
+      <span class="codefont" style="font-size:14px; font-weight:800;">${m.code}</span>
+      <span style="font-size:10.5px; color:var(--muted); font-weight:600;">Imballo: ${m.imb!=null?m.imb:'—'} ${m.um||''}</span>
+    </button>
+  `).join('');
+  box.querySelectorAll('.barcode-ambiguity-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const chosen = matches[parseInt(btn.dataset.idx, 10)];
+      closeBarcodeAmbiguity();
+      openQtyPrompt(chosen);
+    });
+  });
+  document.getElementById('barcodeAmbiguityOverlay').classList.add('show');
+}
+function closeBarcodeAmbiguity(){
+  document.getElementById('barcodeAmbiguityOverlay').classList.remove('show');
+}
+document.getElementById('barcodeAmbiguityCancel').addEventListener('click', closeBarcodeAmbiguity);
 
 // ---- Popup unico per aggiungere un articolo: usato sia dopo la scansione EAN (codice già
 //      compilato) sia per l'inserimento manuale (codice vuoto, l'utente lo digita qui dentro).
@@ -995,6 +1080,7 @@ function refreshQtyPromptPreview(){
   const imbEl = document.getElementById('qtyPromptImb');
   const imgBox = document.getElementById('qtyPromptImg');
   const warnBox = document.getElementById('qtyPromptQbmWarn');
+  const meterBox = document.getElementById('qtyPromptMeterNote');
 
   if(!match){
     descEl.textContent = raw ? "⚠ Codice non trovato nel catalogo: verrà scritto così com'è." : '';
@@ -1002,6 +1088,7 @@ function refreshQtyPromptPreview(){
     cliEl.textContent = '—'; eanEl.textContent = '—'; imbEl.textContent = '—';
     imgBox.innerHTML = '📦';
     warnBox.style.display = 'none';
+    meterBox.style.display = 'none';
     return;
   }
   descEl.style.color = '';
@@ -1013,6 +1100,8 @@ function refreshQtyPromptPreview(){
   const photoIdx = PRODUCT_PHOTOS_INDEX[String(match.code)];
   const photoB64 = (photoIdx !== undefined) ? PRODUCT_PHOTOS_LIST[photoIdx] : null;
   imgBox.innerHTML = photoB64 ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${match.code}">` : '📦';
+
+  meterBox.style.display = (match.um === 'M') ? 'block' : 'none';
 
   const qbmWarn = qbmWarningFor(match);
   if(qbmWarn){ warnBox.textContent = qbmWarn; warnBox.style.display = 'block'; }
@@ -1136,7 +1225,13 @@ function addRow(codeRaw, qtyRaw, cliOverride){
   renderRows();
 }
 
-function removeRow(idx){ rows.splice(idx,1); renderRows(); }
+function removeRow(idx){
+  const r = rows[idx];
+  const label = r.match ? r.match.code : r.code;
+  if(!confirm(`Rimuovere la riga "${label}" dall'ordine?`)) return;
+  rows.splice(idx,1);
+  renderRows();
+}
 
 function renderRows(){
   const container = document.getElementById('rowsContainer');
@@ -1156,16 +1251,15 @@ function renderRows(){
   table.className = 'postable';
   table.innerHTML = `
     <colgroup>
-      <col class="col-pos"><col class="col-code"><col class="col-thumb"><col class="col-desc"><col class="col-qty"><col class="col-rm">
+      <col class="col-pos"><col class="col-code"><col class="col-thumb"><col class="col-desc"><col class="col-qty">
     </colgroup>
     <thead>
       <tr>
-        <th>Pos.</th>
-        <th>Codice art.</th>
+        <th>ID</th>
+        <th>Articolo</th>
         <th></th>
         <th>Descrizione</th>
-        <th>Qtà</th>
-        <th></th>
+        <th>Q.tà</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -1206,8 +1300,12 @@ function renderRows(){
       <td class="codefont">${code}${codeBadge ? '<div>'+codeBadge+'</div>' : ''}</td>
       <td><div class="row-thumb">${thumbHtml}</div></td>
       <td>${desc}${meterNote}${metaLine}</td>
-      <td><input type="number" class="qty-edit" data-idx="${idx}" data-role="qtyordine" value="${r.qtyInput}"></td>
-      <td><button class="rm-btn" data-idx="${idx}" data-role="remove" title="Rimuovi">✕</button></td>
+      <td>
+        <div class="qty-rm-cell">
+          <input type="number" class="qty-edit" data-idx="${idx}" data-role="qtyordine" value="${r.qtyInput}">
+          <button class="rm-btn-small" data-idx="${idx}" data-role="remove" title="Rimuovi">✕ rimuovi</button>
+        </div>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -1432,6 +1530,24 @@ document.getElementById('inDestinazione').addEventListener('change', ()=>{
   const committente = document.getElementById('inCommittente').value;
   const destNome = document.getElementById('inDestinazione').value;
   selectedRow = destinazioniFor(agente, committente).find(r => r.destMerci === destNome) || null;
+
+  // Se il committente cambia dopo aver già inserito delle posizioni, i codici cliente delle
+  // righe già presenti vanno ricalcolati sul nuovo committente (ogni committente ha la sua
+  // colonna di codici cliente nel catalogo) — aggiorniamo qui, appena la destinazione (e quindi
+  // selectedRow.codCM) torna disponibile.
+  if(selectedRow && rows.length > 0){
+    let changed = false;
+    rows.forEach(r=>{
+      if(r.match){
+        const newCli = cliForMatch(r.match);
+        if(newCli !== r.cli){ r.cli = newCli; changed = true; }
+      }
+    });
+    if(changed){
+      renderRows();
+      showToast("Codici cliente delle righe già inserite aggiornati per il nuovo committente.");
+    }
+  }
 });
 
 // ---- Popup unico per compilare la testata (Committente/Destinazione/N.Ordine/Data Ordine/
@@ -1509,6 +1625,7 @@ document.getElementById('hwConfirm').addEventListener('click', ()=>{
   if(!numOrdine){ hint.textContent = 'Inserisci il numero ordine.'; return; }
   if(!dataOrdine){ hint.textContent = 'Inserisci la data ordine.'; return; }
   if(!dataConsegna){ hint.textContent = 'La Data Consegna Richiesta è obbligatoria.'; return; }
+  if(!isBusinessDay(dataConsegna)){ hint.textContent = 'La Data Consegna ' + businessDayLabel(dataConsegna) + ': scegli un giorno lavorativo.'; return; }
   if(dataConsegna <= dataOrdine){ hint.textContent = 'La Data Consegna deve essere successiva alla Data Ordine.'; return; }
 
   document.getElementById('inCommittente').value = committente;
@@ -1533,10 +1650,57 @@ function excelSerialFromISO(iso){
   return Math.round((d.getTime()-epoch)/86400000);
 }
 
+// ---- Giorni lavorativi: esclude sabati, domeniche e festività italiane fisse + mobili (Pasquetta) ----
+function easterMonday(year){
+  // Algoritmo di Meeus/Jones/Butcher per calcolare la domenica di Pasqua, poi +1 giorno = Pasquetta
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  const easterSunday = new Date(Date.UTC(year, month - 1, day));
+  easterSunday.setUTCDate(easterSunday.getUTCDate() + 1); // Pasquetta
+  return easterSunday;
+}
+function italianHolidaysForYear(year){
+  const fixed = [
+    [1,1], [1,6], [4,25], [5,1], [6,2], [8,15], [11,1], [12,8], [12,25], [12,26]
+  ].map(([m,d]) => {
+    const dt = new Date(Date.UTC(year, m - 1, d));
+    return dt.toISOString().slice(0,10);
+  });
+  const easterMon = easterMonday(year).toISOString().slice(0,10);
+  return new Set([...fixed, easterMon]);
+}
+function isBusinessDay(dateISO){
+  if(!dateISO) return true;
+  const dt = new Date(dateISO + 'T00:00:00Z');
+  const dow = dt.getUTCDay(); // 0=domenica, 6=sabato
+  if(dow === 0 || dow === 6) return false;
+  const holidays = italianHolidaysForYear(dt.getUTCFullYear());
+  return !holidays.has(dateISO);
+}
+function businessDayLabel(dateISO){
+  const dt = new Date(dateISO + 'T00:00:00Z');
+  const dow = dt.getUTCDay();
+  if(dow === 0) return 'è una domenica';
+  if(dow === 6) return 'è un sabato';
+  return 'è una festività';
+}
+
 function checkConsegnaValidity(){
   const dOrd = document.getElementById('dataOrdine').value || todayISO();
   const dCons = document.getElementById('dataConsegna').value;
   const hint = document.getElementById('hintConsegna');
+  if(dCons && !isBusinessDay(dCons)){
+    alert('La Data Consegna scelta ' + businessDayLabel(dCons) + ': seleziona un giorno lavorativo (no sabato, domenica o festività).');
+    document.getElementById('dataConsegna').value = '';
+    hint.textContent = "⚠ Seleziona un giorno lavorativo.";
+    hint.classList.add('warn');
+    return;
+  }
   if(dCons && dCons <= dOrd){
     hint.textContent = "⚠ Non successiva alla Data Ordine: NON verrà scritta nel file (resterà vuota).";
     hint.classList.add('warn');
@@ -1675,6 +1839,10 @@ async function generateFile(){
   }
   if(dConsISO <= dOrdISO){
     showToast("La Data Consegna Richiesta deve essere successiva alla Data Ordine.");
+    return null;
+  }
+  if(!isBusinessDay(dConsISO)){
+    showToast("La Data Consegna Richiesta " + businessDayLabel(dConsISO) + ": scegli un giorno lavorativo.");
     return null;
   }
 
