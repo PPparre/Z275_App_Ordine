@@ -1,4 +1,4 @@
-const CACHE_NAME = 'z275-ordine-v1';
+const CACHE_NAME = 'z275-ordine-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -16,22 +16,20 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Cache-first con aggiornamento in background: se offline, serve l'ultima copia salvata
-// dell'app; se online, la aggiorna sempre in cache per la prossima apertura offline.
+// Rete-prima, cache come riserva: appena online, prende SEMPRE la versione più recente
+// pubblicata su GitHub (utile perché l'app viene aggiornata spesso). Solo se offline usa
+// l'ultima copia salvata, per permettere comunque di lavorare senza connessione.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response && response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
