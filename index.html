@@ -129,10 +129,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .card-dark-testata .pair-label{
     color:rgba(255,255,255,.65) !important; text-decoration:none !important; font-weight:600;
   }
-  .card-dark-testata select{
-    background:transparent !important; border:none !important; color:#fff !important;
-    font-weight:700; padding-left:0 !important;
-  }
+  .card-dark-testata select,
   .card-dark-testata input:not([type="hidden"]):not(:disabled){
     background:rgba(255,255,255,.1) !important; border:1px solid rgba(255,255,255,.2) !important;
     color:#fff !important; font-weight:700; border-radius:8px !important; padding:7px 9px !important;
@@ -376,16 +373,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   .header-wizard-btn:active{ background:#d2dfea; }
   .header-wizard-btn.compact{
-    height:44px; font-size:13px; letter-spacing:.2px; gap:7px; font-weight:700;
-    background:#eef1f5; color:var(--sap-bar); border:1.5px solid #dde2ea; border-radius:22px;
+    height:38px; font-size:13px; letter-spacing:.2px; gap:7px; font-weight:700;
+    background:#eef1f5; color:var(--sap-bar); border:1.5px solid #dde2ea; border-radius:19px;
     box-shadow:none;
   }
   .header-wizard-btn.compact:active{ background:#e2e7ee; }
   .header-wizard-btn.big{
-    flex-direction:column; gap:6px; min-height:92px; padding:16px;
+    flex-direction:column; gap:5px; min-height:74px; padding:12px;
     font-size:13.5px; letter-spacing:.2px; border-radius:14px; color:var(--sap-bar-dk);
   }
-  .header-wizard-btn.big .hw-icon{ font-size:26px; opacity:.9; }
+  .header-wizard-btn.big .hw-icon{ font-size:22px; opacity:.9; }
   .header-wizard-btn.compact .hw-icon{ font-size:14px; opacity:1; }
 
   .entry-choice-btn{
@@ -878,7 +875,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "12.0";
+const APP_VERSION = "12.1";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 
 // ---- Accesso con PIN: Admin vede tutto e sceglie l'agente; gli altri PIN bloccano
