@@ -817,6 +817,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   </div>
 </div>
 
+<div id="separatorConfirmOverlay" class="entry-choice-overlay">
+  <div class="entry-choice-box" style="text-align:center;">
+    <div class="entry-choice-title">📦 Separatore</div>
+    <div id="separatorImg" class="qty-prompt-img" style="margin:0 auto 12px;"></div>
+    <div id="separatorDesc" class="qty-prompt-desc"></div>
+    <div id="separatorQuestion" class="qty-prompt-desc" style="margin-bottom:14px; font-weight:700; color:var(--sap-bar-dk);"></div>
+    <label for="separatorQtyInput" class="qty-prompt-label">Quantità da aggiungere</label>
+    <input id="separatorQtyInput" type="number" min="1" step="1" class="qty-prompt-input" inputmode="numeric" value="1">
+    <div class="qty-prompt-actions">
+      <button type="button" id="separatorNo" class="btn-ghost">No, grazie</button>
+      <button type="button" id="separatorYes" class="btn-red">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
 <div id="historyOverlay" class="entry-choice-overlay">
   <div class="entry-choice-box" style="max-width:380px; text-align:left; position:relative; max-height:88vh; overflow-y:auto;">
     <button type="button" id="btnHistoryX" class="entry-choice-x" title="Chiudi">✕</button>
@@ -925,7 +940,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "14.8";
+const APP_VERSION = "15.0";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 
 // ---- Accesso con PIN: Admin vede tutto e sceglie l'agente; gli altri PIN bloccano
@@ -1113,6 +1128,13 @@ DB.forEach(e => {
 });
 function committenteGestisceCodifica(){
   return !!(selectedRow && COMMITTENTI_WITH_CODIFICA.has(String(selectedRow.codCM)));
+}
+// Materiale da allestimento (minibox, separatori, cataloghi, schede...): nessun cliente lo
+// codificherà mai, quindi non deve MAI mostrare "NON CODIFICATO", per nessun committente.
+function isNeverCodedMaterial(code){
+  if(!code) return false;
+  const up = String(code).trim().toUpperCase();
+  return DISPLAY_MATERIAL_CODES.includes(up);
 }
 
 function cliForMatch(match){
@@ -1389,7 +1411,7 @@ function refreshQtyPromptPreview(){
   if(cliVal){
     cliEl.textContent = cliVal;
     cliEl.style.color = '';
-  } else if(committenteGestisceCodifica()){
+  } else if(committenteGestisceCodifica() && !isNeverCodedMaterial(match.code)){
     cliEl.textContent = 'NON CODIFICATO';
     cliEl.style.color = 'var(--warn)';
   } else {
@@ -1585,6 +1607,46 @@ function askLabelNoteConfirm(info){
   });
 }
 
+// Popup con anteprima foto per il separatore (IM95004/IM95013): restituisce la quantità
+// scelta (numero), oppure null se l'agente sceglie "No, grazie".
+function askSeparatorConfirm(separatorCode){
+  return new Promise(resolve => {
+    const match = findInDB(separatorCode);
+    const photoIdx = match ? PRODUCT_PHOTOS_INDEX[String(match.code)] : undefined;
+    const photoB64 = (photoIdx !== undefined) ? PRODUCT_PHOTOS_LIST[photoIdx] : null;
+    document.getElementById('separatorImg').innerHTML = photoB64
+      ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${separatorCode}">`
+      : '📦';
+    document.getElementById('separatorDesc').textContent = match ? (match.desc || '') : '';
+    document.getElementById('separatorQuestion').textContent = `Vuoi aggiungere anche il separatore ${separatorCode}?`;
+    const qtyInput = document.getElementById('separatorQtyInput');
+    qtyInput.value = '1';
+    const overlay = document.getElementById('separatorConfirmOverlay');
+    overlay.classList.add('show');
+    setTimeout(()=>{ qtyInput.focus(); qtyInput.select(); }, 50);
+    const btnYes = document.getElementById('separatorYes');
+    const btnNo = document.getElementById('separatorNo');
+    function cleanup(result){
+      overlay.classList.remove('show');
+      btnYes.removeEventListener('click', onYes);
+      btnNo.removeEventListener('click', onNo);
+      resolve(result);
+    }
+    function onYes(){
+      const qty = parseFloat(qtyInput.value.replace(',', '.'));
+      if(isNaN(qty) || qty <= 0){
+        showToast('Quantità non valida.');
+        qtyInput.focus(); qtyInput.select();
+        return;
+      }
+      cleanup(qty);
+    }
+    function onNo(){ cleanup(null); }
+    btnYes.addEventListener('click', onYes);
+    btnNo.addEventListener('click', onNo);
+  });
+}
+
 
 // FONDO GANCIO: nessun popup, si annota da sola la quantità richiesta di schede nella Nota
 // Ordine — "inserire nr. Q Schede Fondo Gancio" — senza chiedere nulla all'agente.
@@ -1602,28 +1664,23 @@ function handleFondoGancioNote(justAddedCode, qtyRaw){
   showToast('Nota aggiunta: "' + addition + '".');
 }
 
-function offerMinboxAccessories(justAddedCode){
+async function offerMinboxAccessories(justAddedCode){
   const code = String(justAddedCode).trim().toUpperCase();
   const separatorCode = MINIBOX_SEPARATOR_MAP[code];
   const labelNote = MINIBOX_LABEL_NOTE_MAP[code];
-  if(!separatorCode && !labelNote) return Promise.resolve();
+  if(!separatorCode && !labelNote) return;
 
-  if(separatorCode && confirm(`Hai aggiunto il minibox ${code}.\n\nVuoi aggiungere anche il separatore ${separatorCode}?`)){
-    const qtyStr = prompt(`Quantità di ${separatorCode} (separatore) da aggiungere:`, '1');
-    if(qtyStr !== null && qtyStr.trim() !== ''){
-      const qty = parseFloat(qtyStr.replace(',', '.'));
-      if(!isNaN(qty) && qty > 0){
-        addArticleWithChecks(separatorCode, String(qty));
-      } else {
-        showToast('Quantità non valida: separatore ' + separatorCode + ' non aggiunto.');
-      }
+  if(separatorCode){
+    const qty = await askSeparatorConfirm(separatorCode);
+    if(qty !== null){
+      addArticleWithChecks(separatorCode, String(qty));
     }
   }
 
-  if(!labelNote) return Promise.resolve();
+  if(!labelNote) return;
   const info = LABEL_NOTE_INFO.find(i => i.addition === labelNote);
-  return askLabelNoteConfirm(info).then(yes=>{
-    if(!yes) return;
+  const yes = await askLabelNoteConfirm(info);
+  if(yes){
     const noteField = document.getElementById('note');
     const addition = labelNote;
     const currentNote = noteField.value.trim();
@@ -1632,7 +1689,7 @@ function offerMinboxAccessories(justAddedCode){
       noteField.dispatchEvent(new Event('input', {bubbles:true}));
     }
     showToast('Nota aggiunta: "' + addition + '".');
-  });
+  }
 }
 
 async function confirmQtyPrompt(){
@@ -1837,12 +1894,25 @@ function renderHistoryList(){
       </div>
       <div class="history-item-actions">
         <button type="button" class="btn-ghost" data-hist-duplicate="${i}">📄 Duplica</button>
+        <button type="button" class="btn-danger-text" data-hist-delete="${i}" style="flex:0 0 auto; padding:7px 10px;">🗑️</button>
       </div>
     </div>
   `).join('');
   list.querySelectorAll('[data-hist-duplicate]').forEach(btn=>{
     btn.addEventListener('click', ()=> duplicateFromHistory(parseInt(btn.dataset.histDuplicate, 10)));
   });
+  list.querySelectorAll('[data-hist-delete]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteHistoryEntry(parseInt(btn.dataset.histDelete, 10)));
+  });
+}
+function deleteHistoryEntry(i){
+  const history = loadHistory();
+  const h = history[i];
+  if(!h) return;
+  if(!confirm(`Eliminare dallo storico l'ordine "${h.destinazione || h.committente || ''}" (N. Ordine ${h.numOrdine || '—'})?`)) return;
+  history.splice(i, 1);
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); }catch(e){}
+  renderHistoryList();
 }
 function openHistoryOverlay(){
   renderHistoryList();
@@ -2015,7 +2085,7 @@ function renderRows(){
     if(imb) metaLine2Parts.push('<b>Imb.:</b> ' + imb);
     if(r.cli){
       metaLine2Parts.push('<b>Cod.cli:</b> ' + r.cli);
-    } else if(ok && committenteGestisceCodifica()){
+    } else if(ok && committenteGestisceCodifica() && !isNeverCodedMaterial(r.match.code)){
       metaLine2Parts.push('<b style="color:var(--warn);">NON CODIFICATO</b>');
     }
     const metaLine2 = metaLine2Parts.length ? `<div class="meta-line">${metaLine2Parts.join(' · ')}</div>` : '';
