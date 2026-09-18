@@ -960,7 +960,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "16.3";
+const APP_VERSION = "16.4";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 
 // ---- Accesso con PIN: Admin vede tutto e sceglie l'agente; gli altri PIN bloccano
@@ -1182,11 +1182,17 @@ function confirmQtyMultipleImballo(match, qty){
 
 // Soglia oltre la quale la quantità viene considerata insolitamente alta (possibile errore di
 // battitura, es. "500" digitato invece di "50"): chiede solo conferma, non blocca nulla.
-const QTY_ANOMALY_THRESHOLD = 300;
-function confirmQtyNotAnomalous(qty){
-  if(qty > QTY_ANOMALY_THRESHOLD){
+// La soglia è relativa all'imballo dell'articolo (10 volte l'imballo) — così un articolo con
+// imballo piccolo (es. 1) segnala già a partire da 10, mentre uno con imballo grande (es. 100)
+// segnala solo sopra le 1000. Se l'imballo non è noto (articolo non in catalogo), si usa una
+// soglia fissa di riserva.
+const QTY_ANOMALY_FALLBACK_THRESHOLD = 300;
+const QTY_ANOMALY_MULTIPLIER = 10;
+function confirmQtyNotAnomalous(qty, match){
+  const threshold = (match && match.imb) ? match.imb * QTY_ANOMALY_MULTIPLIER : QTY_ANOMALY_FALLBACK_THRESHOLD;
+  if(qty > threshold){
     return confirm(
-      `Hai inserito una quantità di ${qty}: è insolitamente alta, potrebbe essere un errore di battitura.\n\nConfermi che è corretta?`
+      `Hai inserito una quantità di ${qty}: è insolitamente alta rispetto all'imballo di questo articolo (${match && match.imb ? match.imb : '—'}), potrebbe essere un errore di battitura.\n\nConfermi che è corretta?`
     );
   }
   return true;
@@ -1573,7 +1579,7 @@ function saveEditedRow(){
     document.getElementById('qtyPromptInput').select();
     return;
   }
-  if(!confirmQtyNotAnomalous(qty)){
+  if(!confirmQtyNotAnomalous(qty, match)){
     document.getElementById('qtyPromptInput').focus();
     document.getElementById('qtyPromptInput').select();
     return;
@@ -2317,7 +2323,7 @@ function addArticleWithChecks(code, qtyRaw, onNeedsCorrection){
     if(onNeedsCorrection) onNeedsCorrection();
     return false; // l'utente vuole correggere: non aggiunge la riga
   }
-  if(!confirmQtyNotAnomalous(qty)){
+  if(!confirmQtyNotAnomalous(qty, match)){
     if(onNeedsCorrection) onNeedsCorrection();
     return false;
   }
@@ -2443,7 +2449,7 @@ function refreshDestinazioneOptions(){
   }
   selD.disabled = false;
   selD.innerHTML = '<option value="">— seleziona destinazione —</option>' +
-    destinazioni.map(r => `<option value="${r.destMerci}">${r.destMerci} (${r.codPV})</option>`).join('');
+    destinazioni.map(r => `<option value="${r.destMerci}">${r.destMerci}</option>`).join('');
 }
 
 document.getElementById('inAgente').addEventListener('input', refreshCommittenteOptions);
@@ -2498,7 +2504,7 @@ function hwPopulateDestinazione(){
   sel.disabled = false;
   const destinazioni = destinazioniFor(agente, committente);
   sel.innerHTML = '<option value="">— seleziona —</option>' +
-    destinazioni.map(r=>`<option value="${r.destMerci}">${r.destMerci} (${r.codPV})</option>`).join('');
+    destinazioni.map(r=>`<option value="${r.destMerci}">${r.destMerci}</option>`).join('');
   sel.value = document.getElementById('inDestinazione').value || '';
 }
 document.getElementById('hwCommittente').addEventListener('change', hwPopulateDestinazione);
