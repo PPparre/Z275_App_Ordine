@@ -960,7 +960,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "16.4";
+const APP_VERSION = "16.5";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 
 // ---- Accesso con PIN: Admin vede tutto e sceglie l'agente; gli altri PIN bloccano
@@ -974,6 +974,13 @@ const PIN_USERS = {
   "2006": { role: "agente", nome: "Sacchetti" },
   "2026": { role: "agente", nome: "Sasso" }
 };
+
+function maybeDefaultNumOrdine(){
+  const field = document.getElementById('numOrdine');
+  if(field.value.trim() !== '') return; // già compilato (da bozza, storico o a mano): non lo tocco
+  const agente = document.getElementById('inAgente').value.trim();
+  if(agente) field.value = agente.toUpperCase();
+}
 
 function tryPinLogin(){
   const val = document.getElementById('pinInput').value.trim();
@@ -995,6 +1002,7 @@ function tryPinLogin(){
     agenteInput.style.background = '#f0f2f4';
     agenteInput.style.color = 'var(--muted)';
     refreshCommittenteOptions();
+    maybeDefaultNumOrdine();
   }
   checkForDraft();
 }
@@ -2008,6 +2016,7 @@ function duplicateFromHistory(i){
   // N.Ordine e Data Consegna si lasciano vuoti apposta: è un ordine NUOVO, l'agente deve
   // assegnare un numero e una data consegna proprie, non riusare quelle di un ordine già inviato.
   document.getElementById('numOrdine').value = '';
+  maybeDefaultNumOrdine();
   document.getElementById('dataOrdine').value = todayISO();
   document.getElementById('dataConsegna').value = '';
   document.getElementById('note').value = h.note || '';
@@ -2382,6 +2391,7 @@ function clearHeader(){
   document.getElementById('inDestinazione').innerHTML = '<option value="">— scegli prima il committente —</option>';
   document.getElementById('inDestinazione').disabled = true;
   document.getElementById('numOrdine').value = '';
+  maybeDefaultNumOrdine();
   document.getElementById('note').value = '';
   document.getElementById('notaPersonale').value = '';
   updateNotaPersonaleBtnLabel();
@@ -2454,6 +2464,7 @@ function refreshDestinazioneOptions(){
 
 document.getElementById('inAgente').addEventListener('input', refreshCommittenteOptions);
 document.getElementById('inAgente').addEventListener('input', saveDraft);
+document.getElementById('inAgente').addEventListener('input', maybeDefaultNumOrdine);
 document.getElementById('inCommittente').addEventListener('change', refreshDestinazioneOptions);
 document.getElementById('inDestinazione').addEventListener('change', ()=>{
   const agente = document.getElementById('inAgente').value.trim();
@@ -2531,7 +2542,7 @@ function openHeaderWizard(){
     return;
   }
   hwPopulateCommittente();
-  document.getElementById('hwNumOrdine').value = document.getElementById('numOrdine').value || '';
+  document.getElementById('hwNumOrdine').value = document.getElementById('numOrdine').value || agente.toUpperCase();
   document.getElementById('hwDataOrdine').value = document.getElementById('dataOrdine').value || todayISO();
   document.getElementById('hwDataConsegna').value = document.getElementById('dataConsegna').value || '';
   document.getElementById('hwHint').textContent = '';
