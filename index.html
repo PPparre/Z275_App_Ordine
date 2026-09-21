@@ -757,10 +757,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div id="ordSummaryHint" class="hint" style="display:none; text-align:center; padding:4px 12px 8px;">Il materiale di consumo (etichette, minibox, separatori, catalogo, schede) non è incluso nei totali.</div>
   </section>
 
-  <div style="text-align:center; margin:10px 0 4px;">
-    <button type="button" id="btnNotaPersonale" class="btn-ghost" style="width:auto; padding:8px 16px; font-size:12px;">📝 Nota personale</button>
-  </div>
-
   <div class="dbstat" id="dbStat" style="text-align:center;"></div>
 
 </main>
@@ -811,19 +807,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   </div>
 </div>
 
-<div id="notaPersonaleOverlay" class="entry-choice-overlay">
-  <div class="entry-choice-box" style="text-align:left; max-width:360px;">
-    <div class="entry-choice-title">📝 Nota personale</div>
-    <div class="qty-prompt-desc" style="text-align:left; margin-bottom:10px;">
-      Visibile solo a te in questa app, e aggiunta in coda al testo della mail quando generi l'ordine.
-    </div>
-    <textarea id="notaPersonaleTextarea" rows="4" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--sap-field-border); border-radius:8px; font-family:inherit; font-size:13px; resize:vertical;" placeholder="es. ricordami di richiamare il cliente lunedì"></textarea>
-    <div class="qty-prompt-actions" style="margin-top:14px;">
-      <button type="button" id="notaPersonaleCancel" class="btn-ghost">Annulla</button>
-      <button type="button" id="notaPersonaleSave" class="btn-red">Salva</button>
-    </div>
-  </div>
-</div>
 
 <div id="labelNoteOverlay" class="entry-choice-overlay">
   <div class="entry-choice-box" style="text-align:left; max-width:380px; max-height:88vh; overflow-y:auto;">
@@ -832,12 +815,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div id="labelNoteChecklist" class="history-list"></div>
     <div id="labelNoteEmptyHint" class="empty-hint" style="display:none; font-size:12px; padding:8px 0;">Nessun articolo di questo tipo nell'ordine.</div>
     <label for="labelNoteExtraInput" class="qty-prompt-label" style="text-align:left; margin-top:12px;">Altri codici (facoltativo, anche non in ordine)</label>
-    <div style="position:relative;">
-      <input id="labelNoteExtraInput" type="text" class="qty-prompt-codeinput" style="text-align:left; margin-bottom:2px;" placeholder="cerca per codice o descrizione…" autocomplete="off">
+    <div style="position:relative; display:flex; gap:6px;">
+      <input id="labelNoteExtraInput" type="text" class="qty-prompt-codeinput" style="text-align:left; margin-bottom:2px; flex:1;" placeholder="cerca per codice o descrizione…" autocomplete="off">
+      <button type="button" id="labelNoteExtraAdd" class="btn-ghost" style="width:auto; padding:0 16px; flex-shrink:0; height:auto;">+ Aggiungi</button>
       <div id="labelNoteSuggest" class="os-suggest"></div>
     </div>
-    <div id="labelNoteCodesHint" class="hint" style="text-align:left; min-height:16px; margin-bottom:6px;"></div>
-    <div id="labelNoteExtraList" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;"></div>
+    <div id="labelNoteCodesHint" class="hint" style="text-align:left; min-height:16px; margin-bottom:10px;"></div>
     <div class="qty-prompt-actions">
       <button type="button" id="labelNoteNo" class="btn-ghost">Annulla</button>
       <button type="button" id="labelNoteYes" class="btn-red">✓ Conferma</button>
@@ -879,16 +862,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="review-articles-title">Articoli (<span id="rvArtCount">0</span>)</div>
     <div id="rvArticlesList" class="review-articles-list"></div>
 
-    <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);">
-      <label for="rvExtraLabelInput" class="qty-prompt-label" style="text-align:left;">🏷️ Aggiungi codice etichetta (facoltativo)</label>
-      <div style="display:flex; gap:6px; margin-bottom:2px;">
-        <input id="rvExtraLabelInput" type="text" class="qty-prompt-codeinput" style="text-align:left; margin-bottom:0; flex:1;" placeholder="es. PP0011">
-        <button type="button" id="rvExtraLabelAdd" class="btn-ghost" style="width:auto; padding:0 16px; flex-shrink:0;">+ Aggiungi</button>
-      </div>
-      <div id="rvExtraLabelHint" class="hint" style="text-align:left; min-height:16px; margin-bottom:4px;"></div>
-      <div id="rvExtraLabelList" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-    </div>
-
     <div class="review-totals" id="rvTotals"></div>
 
     <div class="qty-prompt-actions">
@@ -925,7 +898,29 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       </button>
     </div>
     <button type="button" id="btnFinishEntry" class="entry-choice-finish">✓ Acquisizione terminata</button>
-    <button type="button" id="btnOpenLabelsManual" class="btn-ghost" style="margin-top:8px;">🏷️ Etichette da stampare</button>
+    <button type="button" id="btnOpenLabelsManual" class="btn-ghost" style="margin-top:8px; width:100%;">🏷️ Etichette da stampare</button>
+  </div>
+</div>
+
+<div id="labelTypeChoiceOverlay" class="entry-choice-overlay">
+  <div class="entry-choice-box" style="text-align:center;">
+    <div class="entry-choice-title">🏷️ Quale tipo di etichette?</div>
+    <div class="qty-prompt-desc" style="margin-bottom:14px;">Scegli prima il tipo: la ricerca dei codici resterà limitata solo a quel tipo.</div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button type="button" class="entry-choice-btn label-type-btn" data-label-key="sfuso" style="width:100%; flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 14px;">
+        <div class="label-type-thumb" style="flex-shrink:0; width:48px; height:48px; border-radius:11px; background:#f0f2f4; display:flex; align-items:center; justify-content:center; font-size:20px; overflow:hidden;"></div>
+        <span style="text-align:left;">Etichette Sfuso<br><span style="font-size:11px; font-weight:400; color:var(--muted);">Standard 90x70mm</span><br><span class="label-type-count" style="font-size:11px; font-weight:700; color:var(--sap-bar-dk);"></span></span>
+      </button>
+      <button type="button" class="entry-choice-btn label-type-btn" data-label-key="mini_sfuso" style="width:100%; flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 14px;">
+        <div class="label-type-thumb" style="flex-shrink:0; width:48px; height:48px; border-radius:11px; background:#f0f2f4; display:flex; align-items:center; justify-content:center; font-size:20px; overflow:hidden;"></div>
+        <span style="text-align:left;">Etichette MINI Sfuso<br><span style="font-size:11px; font-weight:400; color:var(--muted);">Mini 50x70mm</span><br><span class="label-type-count" style="font-size:11px; font-weight:700; color:var(--sap-bar-dk);"></span></span>
+      </button>
+      <button type="button" class="entry-choice-btn label-type-btn" data-label-key="cavi" style="width:100%; flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 14px;">
+        <div class="label-type-thumb" style="flex-shrink:0; width:48px; height:48px; border-radius:11px; background:#f0f2f4; display:flex; align-items:center; justify-content:center; font-size:20px; overflow:hidden;"></div>
+        <span style="text-align:left;">Etichette Cavi<br><span style="font-size:11px; font-weight:400; color:var(--muted);">Al taglio</span><br><span class="label-type-count" style="font-size:11px; font-weight:700; color:var(--sap-bar-dk);"></span></span>
+      </button>
+    </div>
+    <button type="button" id="labelTypeChoiceCancel" class="btn-ghost" style="width:100%; margin-top:14px;">Annulla</button>
   </div>
 </div>
 
@@ -979,7 +974,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "17.2";
+const APP_VERSION = "18.6";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1494,13 +1489,20 @@ const OS_LIST = DB.filter(e => String(e.code).toUpperCase().startsWith('OS'));
 // Liste di ricerca per i codici etichetta: "sfuso" = codice con la X (99,9% dei casi secondo
 // l'uso reale), "cavi" = unità di misura M. Usate sia nel box di ricerca del popup guidato dai
 // minibox sia in quello richiamabile a mano da "Aggiungi posizione".
-const LABEL_X_LIST = DB.filter(e => String(e.code).toUpperCase().includes('X'));
-const LABEL_M_LIST = DB.filter(e => e.um === 'M');
+// Codici a catalogo dedicati alle etichette stesse (non minibox, non un vero articolo
+// acquistabile): definiti qui, in alto, così sia le liste di ricerca sfuso/cavi sia
+// l'intercettazione nell'inserimento manuale possono escluderli in modo coerente.
+const LABEL_MATERIAL_CODES = {
+  'ETSF90X70': 'sfuso',
+  'ETSF50X70': 'mini_sfuso',
+  'ETSFCAVI': 'cavi'
+};
+const LABEL_X_LIST = DB.filter(e => String(e.code).toUpperCase().includes('X') && !LABEL_MATERIAL_CODES[String(e.code).toUpperCase()]);
+const LABEL_M_LIST = DB.filter(e => e.um === 'M' && !LABEL_MATERIAL_CODES[String(e.code).toUpperCase()]);
 
 const DISPLAY_MATERIAL_CODES = [
   'IM95003','IM95004','IM95005','IM95012','IM95013','IM95106','IM95107','IM95108',
-  'FONDO GANCIO','SP90816','SP90817','ZP60001',
-  'ETSF90x70','ETSF50x70','ETSFCAVI'
+  'FONDO GANCIO','SP90816','SP90817','ZP60001'
 ];
 const DISPLAY_MATERIAL_KEYWORD_MAP = {
   'MINIBOX': ['IM95003','IM95005','IM95012','IM95106','IM95107','IM95108'],
@@ -1508,10 +1510,7 @@ const DISPLAY_MATERIAL_KEYWORD_MAP = {
   'AVANA': ['IM95106','IM95107','IM95108'],
   'CATALOGO': ['ZP60001'],
   'SCHEDE FONDO GANCIO': ['FONDO GANCIO'],
-  'FONDO GANCIO': ['FONDO GANCIO'],
-  'ETICHETTE': ['ETSF90x70','ETSF50x70','ETSFCAVI'],
-  'ETICHETTE SFUSO': ['ETSF90x70','ETSF50x70'],
-  'ETICHETTE CAVI': ['ETSFCAVI']
+  'FONDO GANCIO': ['FONDO GANCIO']
 };
 const DISPLAY_MATERIAL_LIST = DISPLAY_MATERIAL_CODES
   .map(c => findInDB(c))
@@ -1542,7 +1541,7 @@ function updateOsSuggest(){
         DISPLAY_MATERIAL_KEYWORD_MAP[kw].forEach(c => seen.add(c));
       }
     });
-    matches = Array.from(seen).map(c => DISPLAY_MATERIAL_BY_CODE[c]).filter(e=>e);
+    matches = Array.from(seen).map(c => DISPLAY_MATERIAL_BY_CODE[c.toUpperCase()]).filter(e=>e);
   }
 
   if(matches.length === 0){ box.classList.remove('show'); box.innerHTML = ''; return; }
@@ -1652,15 +1651,20 @@ const MINIBOX_LABEL_NOTE_MAP = {
 
 // Etichette: non sono un articolo a codice (i clienti non le codificano), quindi nel riepilogo
 // non compaiono come riga normale (niente codice/EAN/cod.cliente/quantità) — solo una piccola
-// miniatura + descrizione. "label" è anche il prefisso usato per riconoscere la nota nel campo
-// Note Ordine (sia in versione con codici precisi sia nel fallback generico).
+// miniatura + descrizione. "label" viene preso dalla descrizione REALE a catalogo dei 3 codici
+// etichetta dedicati (ETSF90X70/ETSF50X70/ETSFCAVI), non da un testo fisso scritto a mano — resta
+// comunque anche il prefisso usato per riconoscere la nota già scritta in Nota Personale.
 // LABEL_NOTE_PHOTOS si popola in un secondo momento, quando arriveranno le foto reali: fino ad
 // allora si mostra un'iconcina generica al loro posto.
 const LABEL_NOTE_INFO = [
-  { key: 'mini_sfuso', label: 'Inserire Etichette MINI Sfuso', desc: 'Etichette MINI per materiale sfuso', question: 'Servono le etichette MINI per il materiale sfuso?', photoKey: 'mini_sfuso' },
-  { key: 'sfuso', label: 'Inserire Etichette Sfuso', desc: 'Etichette per materiale sfuso', question: 'Servono le etichette per il materiale sfuso?', photoKey: 'sfuso' },
-  { key: 'cavi', label: 'Inserire Etichette Cavi', desc: 'Etichette per cavi', question: 'Servono le etichette per i cavi?', photoKey: 'cavi' }
+  { key: 'mini_sfuso', code: 'ETSF50X70', question: 'Servono le etichette MINI per il materiale sfuso?', photoKey: 'mini_sfuso' },
+  { key: 'sfuso', code: 'ETSF90X70', question: 'Servono le etichette per il materiale sfuso?', photoKey: 'sfuso' },
+  { key: 'cavi', code: 'ETSFCAVI', question: 'Servono le etichette per i cavi?', photoKey: 'cavi' }
 ];
+LABEL_NOTE_INFO.forEach(info=>{
+  const match = findInDB(info.code);
+  info.label = match ? match.desc : info.key; // titolo mostrato ovunque + chiave di riconoscimento nella nota
+});
 const LABEL_NOTE_PHOTOS = {"sfuso": "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", "mini_sfuso": "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", "cavi": "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"}; // { sfuso, mini_sfuso, cavi }
 
 // Popup su misura (con anteprima foto) per chiedere se servono le etichette, con un campo dove
@@ -1697,7 +1701,6 @@ function updateNoteSegment(labelPrefix, newCodesText, fieldId){
   if(!found) updated.push(newSegment);
   noteField.value = updated.join(' - ');
   noteField.dispatchEvent(new Event('input', {bubbles:true}));
-  if(fieldId === 'notaPersonale' || !fieldId) updateNotaPersonaleBtnLabel();
 }
 
 function getLabelCandidates(info){
@@ -1762,36 +1765,44 @@ function askLabelNoteConfirm(info){
 
     const extraInput = document.getElementById('labelNoteExtraInput');
     const suggestBox = document.getElementById('labelNoteSuggest');
-    const extraListEl = document.getElementById('labelNoteExtraList');
     const codesHint = document.getElementById('labelNoteCodesHint');
     extraInput.value = '';
     codesHint.textContent = '';
     codesHint.classList.remove('warn');
-    let extraCodes = []; // codici aggiunti uno alla volta (da ricerca o a mano), ciascuno rimovibile
-    extraListEl.innerHTML = '';
     suggestBox.classList.remove('show');
     suggestBox.innerHTML = '';
     const overlay = document.getElementById('labelNoteOverlay');
     overlay.classList.add('show');
     setTimeout(()=>extraInput.focus(), 50);
 
-    function renderExtraChips(){
-      extraListEl.innerHTML = extraCodes.map((code, i) => `
-        <span class="extra-code-chip" data-idx="${i}" style="display:inline-flex; align-items:center; gap:6px; background:#eef1f5; border:1px solid var(--line); border-radius:14px; padding:4px 6px 4px 12px; font-size:12px; font-weight:700; color:var(--sap-bar-dk);">
-          ${code}
-          <button type="button" class="chip-remove" data-idx="${i}" style="border:none; background:none; color:var(--warn); cursor:pointer; font-weight:800; font-size:14px; line-height:1; padding:2px 4px;">✕</button>
-        </span>
-      `).join('');
-      extraListEl.querySelectorAll('.chip-remove').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          extraCodes.splice(parseInt(btn.dataset.idx, 10), 1);
-          renderExtraChips();
-        });
-      });
+    // Aggiunto uno alla volta (da ricerca o a mano), un codice compare direttamente nell'elenco
+    // a checkbox sopra — già selezionato — invece che in una lista separata. Se il codice è già
+    // presente (auto-rilevato o aggiunto prima), si limita a selezionarlo di nuovo.
+    function ensureCodeChecked(code, desc){
+      const upCode = String(code).toUpperCase();
+      const existing = Array.from(listEl.querySelectorAll('.label-note-check'))
+        .find(el => String(el.dataset.code).toUpperCase() === upCode);
+      if(existing){
+        existing.checked = true;
+        existing.closest('label').scrollIntoView({block:'nearest'});
+        return;
+      }
+      emptyHint.style.display = 'none';
+      const row = document.createElement('label');
+      row.className = 'history-item';
+      row.style.cssText = 'display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:8px;';
+      row.innerHTML = `
+        <input type="checkbox" class="label-note-check" data-code="${code}" checked style="width:19px; height:19px; flex-shrink:0; accent-color:var(--brand-red);">
+        <div style="flex:1; min-width:0;">
+          <div class="codefont" style="font-weight:700;">${code}</div>
+          <div style="font-size:11px; color:var(--muted);">${desc || ''}</div>
+        </div>`;
+      listEl.appendChild(row);
+      row.scrollIntoView({block:'nearest'});
     }
     function addExtraCode(code){
-      if(!extraCodes.includes(code)) extraCodes.push(code);
-      renderExtraChips();
+      const match = findInDB(code);
+      ensureCodeChecked(code, match ? match.desc : '');
       extraInput.value = '';
       suggestBox.classList.remove('show');
       suggestBox.innerHTML = '';
@@ -1823,6 +1834,9 @@ function askLabelNoteConfirm(info){
     function onExtraInputKeydown(e){
       if(e.key !== 'Enter') return;
       e.preventDefault();
+      addRawTypedCode();
+    }
+    function addRawTypedCode(){
       const raw = extraInput.value.trim();
       if(!raw) return;
       const codePart = raw.replace(/\s*x\s*\d+\s*$/i, '').trim(); // toglie un'eventuale "x2" finale
@@ -1836,6 +1850,8 @@ function askLabelNoteConfirm(info){
       addExtraCode(raw);
     }
     extraInput.addEventListener('keydown', onExtraInputKeydown);
+    const extraAddBtn = document.getElementById('labelNoteExtraAdd');
+    extraAddBtn.addEventListener('click', addRawTypedCode);
 
     const btnYes = document.getElementById('labelNoteYes');
     const btnNo = document.getElementById('labelNoteNo');
@@ -1845,12 +1861,12 @@ function askLabelNoteConfirm(info){
       btnNo.removeEventListener('click', onNo);
       extraInput.removeEventListener('input', updateSuggest);
       extraInput.removeEventListener('keydown', onExtraInputKeydown);
+      extraAddBtn.removeEventListener('click', addRawTypedCode);
       resolve(result);
     }
     function onYes(){
       const checked = Array.from(document.querySelectorAll('.label-note-check:checked')).map(el => el.dataset.code);
-      const allCodes = [...checked, ...extraCodes];
-      cleanup(allCodes.join(', '));
+      cleanup(checked.join(', '));
     }
     function onNo(){ cleanup(null); }
     btnYes.addEventListener('click', onYes);
@@ -1858,22 +1874,37 @@ function askLabelNoteConfirm(info){
   });
 }
 
-// Apertura libera dal popup "Aggiungi posizione", non legata a un minibox specifico: combina i
-// pattern sfuso (X) e cavi (M) sia nel checklist sia nella ricerca, e scrive in nota con
-// l'etichetta generica "Etichette".
-const GENERIC_LABEL_INFO = { key: 'generic', label: 'Etichette', question: 'Quali etichette servono per questo ordine?' };
-document.getElementById('btnOpenLabelsManual').addEventListener('click', async ()=>{
+// "Etichette da stampare": prima si sceglie quale dei 3 tipi (la ricerca dei codici resta
+// limitata a quel tipo, esattamente come quando scatta in automatico da un minibox), poi si
+// riusa lo stesso flusso già corretto (scrive in Nota Personale, unisce senza doppioni,
+// aggiorna la riga in "Tutte le posizioni"). Ogni opzione mostra la foto vera dell'etichetta e,
+// se nell'ordine ci sono già articoli compatibili con quel tipo, quanti sono stati trovati.
+document.getElementById('btnOpenLabelsManual').addEventListener('click', ()=>{
   document.getElementById('entryChoiceOverlay').classList.remove('show');
-  const codesResult = await askLabelNoteConfirm(GENERIC_LABEL_INFO);
-  if(codesResult){
-    const noteField = document.getElementById('note');
-    const addition = `${GENERIC_LABEL_INFO.label}: ${codesResult}`;
-    const currentNote = noteField.value.trim();
-    noteField.value = currentNote ? (currentNote + ' - ' + addition) : addition;
-    noteField.dispatchEvent(new Event('input', {bubbles:true}));
-    showToast('Nota aggiunta: "' + addition + '".');
-  }
+  document.querySelectorAll('.label-type-btn').forEach(btn=>{
+    const key = btn.dataset.labelKey;
+    const info = LABEL_NOTE_INFO.find(i => i.key === key);
+    const photoB64 = LABEL_NOTE_PHOTOS[info.photoKey];
+    const thumb = btn.querySelector('.label-type-thumb');
+    thumb.innerHTML = photoB64
+      ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${info.label}" style="width:100%; height:100%; object-fit:contain;">`
+      : '🏷️';
+    const n = getLabelCandidates(info).length;
+    const countEl = btn.querySelector('.label-type-count');
+    countEl.textContent = n > 0 ? `${n} articol${n===1?'o':'i'} già in ordine` : '';
+  });
+  document.getElementById('labelTypeChoiceOverlay').classList.add('show');
+});
+document.getElementById('labelTypeChoiceCancel').addEventListener('click', ()=>{
+  document.getElementById('labelTypeChoiceOverlay').classList.remove('show');
   openEntryChoice();
+});
+document.querySelectorAll('#labelTypeChoiceOverlay [data-label-key]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    document.getElementById('labelTypeChoiceOverlay').classList.remove('show');
+    await askAndMergeLabelNote(btn.dataset.labelKey);
+    openEntryChoice();
+  });
 });
 
 // Popup con anteprima foto per il separatore (IM95004/IM95013): restituisce la quantità
@@ -1919,6 +1950,23 @@ function askSeparatorConfirm(separatorCode){
 
 // FONDO GANCIO: nessun popup, si annota da sola la quantità richiesta di schede nella Nota
 // Ordine — "inserire nr. Q Schede Fondo Gancio" — senza chiedere nulla all'agente.
+// Nota generica in Note Ordine (Note AC, il campo che finisce nel file xlsx) quando ci sono
+// richieste di etichette: non elenca mai i codici lì (quelli restano solo nel testo della mail),
+// solo un avviso breve che dice al magazzino di controllare la mail — una volta sola anche se i
+// tipi di etichetta richiesti sono più di uno. Si accoda a un'eventuale nota già scritta
+// dall'agente, separata da un trattino, e si toglie da sola se poi non ci sono più etichette.
+const GENERIC_LABEL_NOTE = 'Inserire etichette (vedi mail)';
+function syncGenericLabelNoteInOrderNotes(hasLabels){
+  const noteField = document.getElementById('note');
+  const segments = (noteField.value || '').split(' - ').map(s=>s.trim()).filter(s=>s && s !== GENERIC_LABEL_NOTE);
+  if(hasLabels) segments.push(GENERIC_LABEL_NOTE);
+  const newText = segments.join(' - ');
+  if(newText !== noteField.value){
+    noteField.value = newText;
+    noteField.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+}
+
 function handleFondoGancioNote(justAddedCode, qtyRaw){
   if(String(justAddedCode).trim().toUpperCase() !== 'FONDO GANCIO') return;
   const qty = parseFloat(String(qtyRaw).replace(',', '.'));
@@ -1936,6 +1984,18 @@ function handleFondoGancioNote(justAddedCode, qtyRaw){
 // Estrae in una funzione riutilizzabile la logica "chiedi etichette e aggiorna la Nota
 // Personale", usata sia dopo un minibox (offerMinboxAccessories) sia per i codici a catalogo
 // dedicati alle etichette stesse (LABEL_MATERIAL_CODES), inseriti come un articolo qualunque.
+// Sezione etichette per il testo della mail (usata sia nell'ordine normale con xlsx allegato sia
+// nella richiesta di sole etichette senza file): un'intestazione + un elenco puntato, un tipo per
+// blocco con i relativi codici, separati da una riga vuota per restare leggibili su mobile.
+function buildLabelsMailSection(labelInfosPresent, notaPersonaleVal){
+  if(!labelInfosPresent.length) return '';
+  const lines = labelInfosPresent.map(info=>{
+    const codes = extractNoteSegmentCodes(info.label, notaPersonaleVal);
+    return '- ' + info.label + ': ' + (codes || '(nessun codice specificato)');
+  });
+  return 'ETICHETTE DA INSERIRE:\n\n' + lines.join('\n\n');
+}
+
 async function askAndMergeLabelNote(key){
   const info = LABEL_NOTE_INFO.find(i => i.key === key);
   const codesResult = await askLabelNoteConfirm(info);
@@ -1960,14 +2020,10 @@ async function askAndMergeLabelNote(key){
   renderRows(); // aggiorna subito il blocco etichette nella tabella "Tutte le posizioni"
 }
 
-// Codici a catalogo dedicati alle etichette stesse (non minibox): se inseriti come un
-// qualunque articolo, aprono subito il popup con checklist + inserimento manuale, invece di
-// finire come riga d'ordine — non sono un vero articolo acquistabile.
-const LABEL_MATERIAL_CODES = {
-  'ETSF90x70': 'sfuso',
-  'ETSF50x70': 'mini_sfuso',
-  'ETSFCAVI': 'cavi'
-};
+// Codici a catalogo dedicati alle etichette stesse (LABEL_MATERIAL_CODES è già definito più in
+// alto, vicino a LABEL_X_LIST/LABEL_M_LIST): l'inserimento manuale/scan li blocca (vedi
+// confirmQtyPrompt), l'unico modo per usarli è il pulsante "Etichette da stampare" o il trigger
+// automatico dai minibox.
 
 async function offerMinboxAccessories(justAddedCode){
   const code = String(justAddedCode).trim().toUpperCase();
@@ -1997,9 +2053,9 @@ async function confirmQtyPrompt(){
   }
   const labelKey = LABEL_MATERIAL_CODES[code.toUpperCase()];
   if(labelKey){
-    closeQtyPrompt();
-    await askAndMergeLabelNote(labelKey);
-    openEntryChoice();
+    showToast('Per le etichette usa il pulsante "🏷️ Etichette da stampare" nel popup di aggiunta posizione.');
+    document.getElementById('qtyPromptCodeInput').value = '';
+    document.getElementById('qtyPromptCodeInput').focus();
     return;
   }
   const qtyRaw = document.getElementById('qtyPromptInput').value;
@@ -2273,7 +2329,7 @@ function duplicateFromHistory(i){
   document.getElementById('dataConsegna').value = '';
   maybeDefaultDataConsegna();
   document.getElementById('note').value = h.note || '';
-  document.getElementById('notaPersonale').value = h.notaPersonale || ''; updateNotaPersonaleBtnLabel();
+  document.getElementById('notaPersonale').value = h.notaPersonale || '';
 
   rows = (h.rows || []).map(dr => {
     const match = findInDB(dr.code);
@@ -2288,33 +2344,9 @@ function duplicateFromHistory(i){
 }
 document.getElementById('btnHistory').addEventListener('click', openHistoryOverlay);
 
-// ---- Nota personale: piccolo pulsante in fondo alla pagina che apre un popup con una casella
-//      di testo, invece di un campo sempre visibile in testata. Il valore resta nello stesso
-//      campo nascosto #notaPersonale già collegato a bozza/storico/riepilogo/mail. ----
-function updateNotaPersonaleBtnLabel(){
-  const val = document.getElementById('notaPersonale').value.trim();
-  document.getElementById('btnNotaPersonale').textContent = val ? '📝 Nota personale ✓' : '📝 Nota personale';
-}
-function openNotaPersonaleOverlay(){
-  document.getElementById('notaPersonaleTextarea').value = document.getElementById('notaPersonale').value;
-  document.getElementById('notaPersonaleOverlay').classList.add('show');
-  setTimeout(()=>document.getElementById('notaPersonaleTextarea').focus(), 50);
-}
-function closeNotaPersonaleOverlay(){
-  document.getElementById('notaPersonaleOverlay').classList.remove('show');
-}
-document.getElementById('btnNotaPersonale').addEventListener('click', openNotaPersonaleOverlay);
-document.getElementById('notaPersonaleCancel').addEventListener('click', closeNotaPersonaleOverlay);
-document.getElementById('notaPersonaleSave').addEventListener('click', ()=>{
-  const val = document.getElementById('notaPersonaleTextarea').value;
-  const field = document.getElementById('notaPersonale');
-  field.value = val;
-  field.dispatchEvent(new Event('input', {bubbles:true}));
-  updateNotaPersonaleBtnLabel();
-  closeNotaPersonaleOverlay();
-  showToast(val.trim() ? 'Nota personale salvata.' : 'Nota personale svuotata.');
-});
-updateNotaPersonaleBtnLabel();
+// ---- Nota personale: il campo nascosto #notaPersonale non ha più un box di inserimento
+//      manuale — viene scritto solo dal flusso guidato delle etichette (askAndMergeLabelNote /
+//      updateNoteSegment). Resta comunque collegato a bozza/storico/riepilogo/mail. ----
 
 document.getElementById('btnHistoryX').addEventListener('click', closeHistoryOverlay);
 
@@ -2359,7 +2391,7 @@ function restoreDraft(draft){
   document.getElementById('dataOrdine').value = draft.dataOrdine || todayISO();
   document.getElementById('dataConsegna').value = draft.dataConsegna || '';
   document.getElementById('note').value = draft.note || '';
-  document.getElementById('notaPersonale').value = draft.notaPersonale || ''; updateNotaPersonaleBtnLabel();
+  document.getElementById('notaPersonale').value = draft.notaPersonale || '';
 
   rows = (draft.rows || []).map(dr => {
     const match = findInDB(dr.code);
@@ -2386,12 +2418,15 @@ document.getElementById('btnDraftDiscard').addEventListener('click', ()=>{
 
 function renderRows(){
   invalidateGeneratedFile();
-  saveDraft();
   const container = document.getElementById('rowsContainer');
   const summary = document.getElementById('ordSummary');
   document.getElementById('rowCount').textContent = rows.length;
   container.innerHTML = "";
-  if(rows.length===0){
+  const notaPersonaleVal = document.getElementById('notaPersonale').value || '';
+  const labelInfosPresent = LABEL_NOTE_INFO.filter(info => notaPersonaleVal.includes(info.label));
+  syncGenericLabelNoteInOrderNotes(labelInfosPresent.length > 0);
+  saveDraft();
+  if(rows.length===0 && labelInfosPresent.length===0){
     container.innerHTML = '<div class="empty-hint" id="emptyHint">Nessuna posizione ancora aggiunta.</div>';
     summary.style.display = 'none';
     document.getElementById('ordSummaryHint').style.display = 'none';
@@ -2473,38 +2508,35 @@ function renderRows(){
     tbody.appendChild(tr);
   });
 
-  wrap.appendChild(table);
-  container.appendChild(wrap);
-
-  // Se ci sono etichette segnalate (Nota Personale), le mostro anche qui — miniatura + titolo
-  // "Inserire Etichette ..." + elenco codici sotto. Sola lettura: si modificano dal popup o dal
-  // box nel riepilogo. Non finiscono mai nel file xlsx, solo nel testo della mail predefinito.
-  const notaPersonaleVal = document.getElementById('notaPersonale').value || '';
-  const labelBlocksHtml = LABEL_NOTE_INFO
-    .filter(info => notaPersonaleVal.includes(info.label))
-    .map(info=>{
+  // Se ci sono etichette segnalate (Nota Personale), le mostro come righe nella STESSA tabella,
+  // con lo stesso stile delle righe articolo (miniatura, colonne) — codici sotto la descrizione,
+  // come le righe EAN/Imb. Sola lettura: si modificano dal popup o dal box nel riepilogo. Non
+  // finiscono mai nel file xlsx, solo nel testo della mail predefinito. Compaiono anche se non
+  // c'è ancora nessun articolo di vendita in ordine (labelInfosPresent calcolato più in alto).
+  labelInfosPresent
+    .forEach(info=>{
       const currentCodes = extractNoteSegmentCodes(info.label, notaPersonaleVal);
       const photoB64 = LABEL_NOTE_PHOTOS[info.photoKey];
-      const thumb = photoB64
-        ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${info.desc}">`
+      const thumbHtml = photoB64
+        ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${info.label}">`
         : '🏷️';
       const codesLine = currentCodes
         ? `<div class="meta-line"><b>Codici:</b> ${currentCodes}</div>`
         : `<div class="meta-line" style="color:var(--muted);">nessun codice specificato</div>`;
-      return `<div class="history-item" style="display:flex; align-items:flex-start; gap:10px; margin:8px 12px;">
-        <div class="row-thumb" style="flex-shrink:0;">${thumb}</div>
-        <div style="flex:1; min-width:0;">
-          <div style="font-weight:800; color:var(--sap-bar-dk);">${info.label}</div>
-          <div style="font-size:11px; color:var(--muted); margin-bottom:2px;">${info.desc}</div>
-          ${codesLine}
-        </div>
-      </div>`;
-    }).join('');
-  if(labelBlocksHtml){
-    const labelBlocksWrap = document.createElement('div');
-    labelBlocksWrap.innerHTML = labelBlocksHtml;
-    container.appendChild(labelBlocksWrap);
-  }
+      const tr = document.createElement('tr');
+      tr.className = 'tr-label-note';
+      tr.innerHTML = `
+        <td>🏷️</td>
+        <td class="codefont">ETICHETTE</td>
+        <td><div class="row-thumb">${thumbHtml}</div></td>
+        <td>${info.label}${codesLine}</td>
+        <td></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  wrap.appendChild(table);
+  container.appendChild(wrap);
 
   container.querySelectorAll('[data-role="editrow"]').forEach(td=>{
     td.addEventListener('click', e => openEditRow(parseInt(e.currentTarget.dataset.idx)));
@@ -2678,7 +2710,6 @@ function clearHeader(){
   maybeDefaultNumOrdine();
   document.getElementById('note').value = '';
   document.getElementById('notaPersonale').value = '';
-  updateNotaPersonaleBtnLabel();
   document.getElementById('dataOrdine').value = todayISO();
   document.getElementById('dataConsegna').value = '';
   maybeDefaultDataConsegna();
@@ -3186,90 +3217,6 @@ function formatDateIT(iso){
   const [y,m,d] = iso.split('-');
   return `${d}/${m}/${y}`;
 }
-// ---- Box "aggiungi codice etichetta" nel riepilogo finale: stessa logica "uno alla volta" del
-//      popup guidato dei minibox, ma qui è sempre disponibile, anche se non è scattata nessuna
-//      catena guidata in questo ordine. I codici scelti finiscono nella Note Ordine sotto un
-//      marcatore dedicato ("Etichette aggiuntive: ..."), così aggiungerne/toglierne uno non tocca
-//      le altre note già presenti (QBM, minibox, Fondo Gancio...). ----
-const EXTRA_LABEL_MARKER = 'Etichette aggiuntive';
-let rvExtraLabelCodes = [];
-function parseExtraLabelCodes(noteText){
-  const re = new RegExp(EXTRA_LABEL_MARKER + ':\\s*([^-]*)', 'i');
-  const m = (noteText || '').match(re);
-  if(!m) return [];
-  return m[1].split(',').map(s=>s.trim()).filter(s=>s);
-}
-function syncExtraLabelsToNote(){
-  const noteField = document.getElementById('note');
-  let text = noteField.value || '';
-  const re = new RegExp('\\s*-?\\s*' + EXTRA_LABEL_MARKER + ':\\s*[^-]*', 'i');
-  text = text.replace(re, '').replace(/^-\s*/, '').replace(/\s*-\s*$/, '').trim();
-  if(rvExtraLabelCodes.length){
-    const addition = `${EXTRA_LABEL_MARKER}: ${rvExtraLabelCodes.join(', ')}`;
-    text = text ? (text + ' - ' + addition) : addition;
-  }
-  noteField.value = text;
-  noteField.dispatchEvent(new Event('input', {bubbles:true}));
-}
-function renderRvExtraLabelChips(){
-  document.getElementById('rvExtraLabelList').innerHTML = rvExtraLabelCodes.map((code,i)=>`
-    <span class="extra-code-chip" style="display:inline-flex; align-items:center; gap:6px; background:#eef1f5; border:1px solid var(--line); border-radius:14px; padding:4px 6px 4px 12px; font-size:12px; font-weight:700; color:var(--sap-bar-dk);">
-      ${code}
-      <button type="button" class="rv-chip-remove" data-idx="${i}" style="border:none; background:none; color:var(--warn); cursor:pointer; font-weight:800; font-size:14px; line-height:1; padding:2px 4px;">✕</button>
-    </span>
-  `).join('');
-  document.getElementById('rvExtraLabelList').querySelectorAll('.rv-chip-remove').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      rvExtraLabelCodes.splice(parseInt(btn.dataset.idx, 10), 1);
-      renderRvExtraLabelChips();
-      syncExtraLabelsToNote();
-      refreshRvNoteRow();
-    });
-  });
-}
-// Il box "Note" nel riquadro in alto del riepilogo si costruisce una volta sola all'apertura:
-// questa funzione lo riallinea al volo ogni volta che un codice etichetta viene aggiunto o tolto
-// da qui sotto, così resta sempre coerente con quello che si vede nella nota vera e propria.
-function refreshRvNoteRow(){
-  const note = document.getElementById('note').value.trim();
-  const header = document.getElementById('rvHeaderSection');
-  const existingRows = Array.from(header.querySelectorAll('.review-row'));
-  const noteRow = existingRows.find(el => el.querySelector('span')?.textContent === 'Note');
-  if(note){
-    if(noteRow){
-      noteRow.querySelector('b').textContent = note;
-    } else {
-      header.insertAdjacentHTML('beforeend', `<div class="review-row"><span>Note</span><b>${note}</b></div>`);
-    }
-  } else if(noteRow){
-    noteRow.remove();
-  }
-}
-function addRvExtraLabelCode(){
-  const input = document.getElementById('rvExtraLabelInput');
-  const hint = document.getElementById('rvExtraLabelHint');
-  const raw = input.value.trim();
-  if(!raw) return;
-  const codePart = raw.replace(/\s*x\s*\d+\s*$/i, '').trim();
-  if(!findInDB(codePart)){
-    hint.textContent = '⚠ codice non trovato nel catalogo: ' + raw + ' (aggiunto comunque)';
-    hint.classList.add('warn');
-  } else {
-    hint.textContent = '';
-    hint.classList.remove('warn');
-  }
-  rvExtraLabelCodes.push(raw);
-  renderRvExtraLabelChips();
-  syncExtraLabelsToNote();
-  refreshRvNoteRow();
-  input.value = '';
-  input.focus();
-}
-document.getElementById('rvExtraLabelAdd').addEventListener('click', addRvExtraLabelCode);
-document.getElementById('rvExtraLabelInput').addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){ e.preventDefault(); addRvExtraLabelCode(); }
-});
-
 function openReviewOverlay(){
   const { agente, committente, numOrd, dest, dOrdISO, dConsISO, note, notaPersonale } = readHeaderFormData();
   const rowsHtml = [
@@ -3306,32 +3253,16 @@ function openReviewOverlay(){
     .filter(info => noteText.includes(info.label))
     .map(info => {
       const currentCodes = extractNoteSegmentCodes(info.label, noteText);
-      const photoB64 = LABEL_NOTE_PHOTOS[info.photoKey];
-      const thumb = photoB64
-        ? `<img src="data:image/jpeg;base64,${photoB64}" style="width:100%;height:100%;object-fit:contain;">`
-        : '🏷️';
+      const codesLine = currentCodes
+        ? `<div class="meta-line"><b>Codici:</b> ${currentCodes}</div>`
+        : `<div class="meta-line" style="color:var(--muted);">nessun codice specificato</div>`;
       return `<div class="review-art-row">
-        <div class="review-art-row-line">
-          <div class="row-thumb" style="flex-shrink:0;">${thumb}</div>
-          <div style="flex:1; min-width:0; margin-left:8px;">
-            <div style="font-weight:800; color:var(--sap-bar-dk);">${info.label}</div>
-            <div style="font-size:11px; color:var(--muted);">${info.desc}</div>
-          </div>
-        </div>
-        <label class="qty-prompt-label" style="text-align:left; margin-top:6px;">Codici articoli (modificabile)</label>
-        <input type="text" class="rv-label-codes-input codefont" data-label-key="${info.key}" value="${currentCodes.replace(/"/g,'&quot;')}" style="width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid var(--sap-field-border); border-radius:8px; font-size:12.5px; margin-top:4px;" placeholder="es. PP0011, EC83235 x2">
+        <div style="font-weight:800; color:var(--sap-bar-dk);">🏷️ ${info.label}</div>
+        ${codesLine}
       </div>`;
     }).join('');
   if(labelNotesHtml){
     document.getElementById('rvArticlesList').innerHTML += labelNotesHtml;
-    document.getElementById('rvArticlesList').querySelectorAll('.rv-label-codes-input').forEach(input=>{
-      input.addEventListener('input', ()=>{
-        const key = input.dataset.labelKey;
-        const info = LABEL_NOTE_INFO.find(i => i.key === key);
-        updateNoteSegment(info.label, input.value, 'notaPersonale');
-        renderRows(); // aggiorna anche il blocco etichette nella tabella sotto
-      });
-    });
   }
 
   let totImballi = 0, totPezzi = 0, nArticoliVendita = 0;
@@ -3345,12 +3276,6 @@ function openReviewOverlay(){
     nArticoliVendita + ' articoli di vendita · ' + totImballi.toLocaleString('it-IT') + ' imballi · ' +
     (Math.round(totPezzi*100)/100).toLocaleString('it-IT') + ' pezzi';
 
-  rvExtraLabelCodes = parseExtraLabelCodes(document.getElementById('note').value || '');
-  renderRvExtraLabelChips();
-  document.getElementById('rvExtraLabelInput').value = '';
-  document.getElementById('rvExtraLabelHint').textContent = '';
-  document.getElementById('rvExtraLabelHint').classList.remove('warn');
-
   document.getElementById('reviewOverlay').classList.add('show');
 }
 
@@ -3361,8 +3286,23 @@ document.getElementById('btnReviewX').addEventListener('click', closeReviewOverl
 document.getElementById('btnReviewEdit').addEventListener('click', closeReviewOverlay);
 
 document.getElementById('btnSend').addEventListener('click', ()=>{
-  if(rows.length === 0){
+  const notaPersonaleValCheck = document.getElementById('notaPersonale').value || '';
+  const hasLabelsCheck = LABEL_NOTE_INFO.some(info => notaPersonaleValCheck.includes(info.label));
+
+  if(rows.length === 0 && !hasLabelsCheck){
     showToast("Aggiungi almeno un articolo prima di generare il file.");
+    return;
+  }
+  // Ordine di sole etichette (nessuna posizione, nemmeno minibox/scatole): il gestionale non
+  // legge un file xlsx senza righe, quindi non ha senso crearlo — basta una mail di richiesta,
+  // per cui servono solo Committente e Destinazione (non serve compilare tutta la testata).
+  if(rows.length === 0 && hasLabelsCheck){
+    const { committente, dest } = readHeaderFormData();
+    if(!committente || !dest){
+      showToast("Completa almeno Committente e Destinazione Merci prima di inviare la richiesta etichette.");
+      return;
+    }
+    openReviewOverlay();
     return;
   }
   if(!headerIsComplete()){
@@ -3381,6 +3321,28 @@ document.getElementById('btnSend').addEventListener('click', ()=>{
 
 document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>{
  try{
+  const notaPersonaleValNow = document.getElementById('notaPersonale').value || '';
+  const labelInfosPresentNow = LABEL_NOTE_INFO.filter(info => notaPersonaleValNow.includes(info.label));
+  const isLabelsOnlyOrder = rows.length === 0 && labelInfosPresentNow.length > 0;
+
+  // Ordine di sole etichette: niente file xlsx (il gestionale non lo leggerebbe comunque, dato
+  // che non ci sono righe articolo) — solo una mail di richiesta, con oggetto dedicato e il
+  // testo con l'elenco dei tipi di etichetta richiesti e i relativi codici.
+  if(isLabelsOnlyOrder){
+    closeReviewOverlay();
+    const dest = (document.getElementById('inDestinazione').value || 'Destinatario').trim();
+    const dOrdISO = document.getElementById('dataOrdine').value || todayISO();
+    const [y,m,d] = dOrdISO.split('-');
+    const dataStr = `${d}.${m}.${y.slice(2)}`;
+    const mailSubjectText = `${dest} - Richiesta Etichette del ${dataStr}`;
+    const mailBodyText = buildLabelsMailSection(labelInfosPresentNow, notaPersonaleValNow);
+    pendingMailtoUrl = 'mailto:ordini@polypool.it?subject=' + encodeURIComponent(mailSubjectText) + '&body=' + encodeURIComponent(mailBodyText);
+    setFileGeneratedState(true);
+    clearDraft();
+    showToast("Richiesta etichette pronta. Tocca 'Apri Mail' per inviarla.");
+    return;
+  }
+
   if(typeof JSZip === 'undefined'){
     alert("Errore interno: la libreria di generazione file non è disponibile in questa copia dell'app. Riscarica il file più recente.");
     return;
@@ -3405,10 +3367,12 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
   // aggirabile lato codice: l'allegato va sempre aggiunto a mano dall'app Mail.
   const orderTitle = filename.replace(/\.xlsx$/i, '');
   const notaPersonaleVal = document.getElementById('notaPersonale').value.trim();
+  const labelInfosPresentHere = LABEL_NOTE_INFO.filter(info => notaPersonaleVal.includes(info.label));
+  const labelsSection = buildLabelsMailSection(labelInfosPresentHere, notaPersonaleVal);
   const mailSubject = encodeURIComponent(orderTitle);
   const mailBody = encodeURIComponent(
     'In allegato l\'ordine ' + orderTitle + '.xlsx pronto per il caricamento SAP.'
-    + (notaPersonaleVal ? '\n\n' + notaPersonaleVal : '')
+    + (labelsSection ? '\n\n' + labelsSection : '')
   );
   pendingMailtoUrl = 'mailto:ordini@polypool.it?subject=' + mailSubject + '&body=' + mailBody;
   setFileGeneratedState(true);
