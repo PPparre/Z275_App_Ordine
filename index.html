@@ -519,12 +519,17 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     background:rgba(0,0,0,.75); color:#fff; text-align:center; padding:10px 14px; font-size:12.5px;
   }
   .scan-retry-btn{
-    position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:6;
-    background:rgba(255,255,255,.95); color:var(--navy, #16202F); border:none;
-    padding:10px 18px; border-radius:999px; font-size:13.5px; font-weight:700;
-    box-shadow:0 2px 10px rgba(0,0,0,.3); display:none;
+    position:absolute; bottom:18px; left:50%; transform:translateX(-50%); z-index:7;
+    display:none; align-items:center; gap:7px;
+    background:rgba(22,32,47,.68); color:#fff; border:1px solid rgba(255,255,255,.35);
+    padding:10px 20px; border-radius:999px; font-size:13.5px; font-weight:700;
+    letter-spacing:.2px; box-shadow:0 4px 14px rgba(0,0,0,.35);
+    -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    transition:transform .12s, background .12s;
   }
-  .scan-retry-btn.show{ display:block; }
+  .scan-retry-btn svg{ flex:none; }
+  .scan-retry-btn:active{ transform:translateX(-50%) scale(.96); background:rgba(22,32,47,.85); }
+  .scan-retry-btn.show{ display:flex; }
 
   .qty-prompt-overlay{
     display:none; position:fixed; inset:0; z-index:220; background:rgba(16,35,61,.55);
@@ -585,6 +590,29 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .qty-prompt-meternote{
     background:#e2eaf1; color:var(--sap-bar-dk); border:1px solid #b9cbdb; border-radius:12px;
     padding:8px 10px; font-size:11.5px; font-weight:500; text-align:left; margin-bottom:10px; line-height:1.35;
+  }
+  .qty-prompt-wheel-wrap{ margin-bottom:10px; }
+  .qty-prompt-wheel-label{
+    font-size:10.5px; color:var(--sap-label); text-align:center; margin-bottom:6px; line-height:1.3;
+  }
+  .qty-prompt-wheel-frame{ position:relative; height:132px; }
+  .qty-prompt-wheel-highlight{
+    position:absolute; top:50%; left:0; right:0; height:44px; transform:translateY(-50%);
+    background:#fdeceb; border-top:1px solid #f2c2bd; border-bottom:1px solid #f2c2bd;
+    pointer-events:none; z-index:1; border-radius:8px;
+  }
+  .qty-prompt-wheel{
+    height:100%; overflow-y:auto; scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch;
+    position:relative;
+  }
+  .qty-prompt-wheel-spacer{ height:44px; scroll-snap-align:none; }
+  .qty-prompt-wheel-item{
+    height:44px; display:flex; align-items:center; justify-content:center;
+    scroll-snap-align:center; font-size:14.5px; color:var(--sap-label); font-weight:600;
+  }
+  .qty-prompt-wheel-item b{ font-weight:700; }
+  .qty-prompt-wheel-item.selected{
+    font-size:18px; color:var(--navy, #16202F); font-weight:800;
   }
   .qty-prompt-label{
     display:block; font-size:11px; color:var(--sap-label); font-weight:700;
@@ -944,9 +972,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   </div>
   <div id="scanViewport" class="scan-viewport">
     <div class="scan-guide"></div>
+    <button type="button" id="btnScanRetry" class="scan-retry-btn">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+      Riprova
+    </button>
   </div>
   <div id="scanHint" class="scan-hint">Avvio fotocamera…</div>
-  <button type="button" id="btnScanRetry" class="scan-retry-btn">🔄 Riprova</button>
 </div>
 
 <div id="qtyPromptOverlay" class="qty-prompt-overlay">
@@ -978,6 +1009,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       non i metri — l'app moltiplica da sola per l'imballo indicato sopra.
     </div>
     <div class="qty-prompt-qbmwarn" id="qtyPromptQbmWarn" style="display:none;"></div>
+    <div id="qtyPromptWheelWrap" class="qty-prompt-wheel-wrap" style="display:none;">
+      <div class="qty-prompt-wheel-label">Scorri per scegliere un multiplo dell'imballo — oppure scrivi la quantità a mano qui sotto</div>
+      <div class="qty-prompt-wheel-frame">
+        <div class="qty-prompt-wheel-highlight"></div>
+        <div id="qtyPromptWheel" class="qty-prompt-wheel"></div>
+      </div>
+    </div>
     <label for="qtyPromptInput" class="qty-prompt-label">Quantità da inserire</label>
     <input id="qtyPromptInput" type="number" min="0" step="1" class="qty-prompt-input" inputmode="numeric">
     <div class="qty-prompt-actions">
@@ -988,7 +1026,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "20.1";
+const APP_VERSION = "21.1";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1513,6 +1551,7 @@ function refreshQtyPromptPreview(){
     warnBox.style.display = 'none';
     meterBox.style.display = 'none';
     specialNote.style.display = 'none';
+    hideQtyWheel();
     return;
   }
   descEl.style.color = '';
@@ -1541,7 +1580,88 @@ function refreshQtyPromptPreview(){
   const qbmWarn = qbmWarningFor(match);
   if(qbmWarn){ warnBox.textContent = qbmWarn; warnBox.style.display = 'block'; }
   else { warnBox.style.display = 'none'; }
+
+  // Il wheel picker (multipli dell'imballo) ha senso solo per articoli venduti a pezzo/collo con
+  // un imballo noto: per i cavi a bobina (um "M") il numero che si scrive qui è il numero di
+  // bobine, non un multiplo dell'imballo, quindi lì resta solo l'inserimento manuale.
+  if(match.um !== 'M' && match.imb && match.imb >= 1){
+    buildQtyWheel(match.imb);
+  } else {
+    hideQtyWheel();
+  }
 }
+
+// ---- Wheel picker quantità: striscia verticale con "scroll-snap" che mostra i multipli
+//      dell'imballo (1x, 2x, 3x...), per scegliere in un tocco le quantità più comuni (colli
+//      interi) senza dover digitare. L'input manuale sotto resta sempre attivo e modificabile:
+//      il wheel è solo una scorciatoia, non sostituisce la digitazione libera. ----
+const QTY_WHEEL_ITEM_H = 44;
+const QTY_WHEEL_MAX_MULTIPLES = 50;
+let qtyWheelImb = null;
+let qtyWheelScrollTimer = null;
+function hideQtyWheel(){
+  document.getElementById('qtyPromptWheelWrap').style.display = 'none';
+  qtyWheelImb = null;
+}
+function buildQtyWheel(imb){
+  qtyWheelImb = imb;
+  const wrap = document.getElementById('qtyPromptWheelWrap');
+  const wheel = document.getElementById('qtyPromptWheel');
+  wrap.style.display = 'block';
+  // Spaziatori vuoti sopra/sotto (invece del padding sul contenitore): più affidabili per
+  // centrare il primo/ultimo elemento dentro la fascia evidenziata su tutti i browser.
+  let html = '<div class="qty-prompt-wheel-spacer"></div>';
+  for(let i = 1; i <= QTY_WHEEL_MAX_MULTIPLES; i++){
+    const qty = i * imb;
+    html += `<div class="qty-prompt-wheel-item" data-qty="${qty}"><b>${qty}</b>&nbsp;pz&nbsp;(${i}&nbsp;×&nbsp;imb.)</div>`;
+  }
+  html += '<div class="qty-prompt-wheel-spacer"></div>';
+  wheel.innerHTML = html;
+  wheel.scrollTop = 0;
+  markSelectedWheelItem(0);
+}
+function markSelectedWheelItem(idx){
+  const wheel = document.getElementById('qtyPromptWheel');
+  const items = wheel.querySelectorAll('.qty-prompt-wheel-item');
+  items.forEach(el => el.classList.remove('selected'));
+  if(items[idx]) items[idx].classList.add('selected');
+}
+function qtyWheelIndexFromScroll(){
+  const wheel = document.getElementById('qtyPromptWheel');
+  const idx = Math.round(wheel.scrollTop / QTY_WHEEL_ITEM_H);
+  return Math.max(0, Math.min(QTY_WHEEL_MAX_MULTIPLES - 1, idx));
+}
+document.getElementById('qtyPromptWheel').addEventListener('scroll', ()=>{
+  if(!qtyWheelImb) return;
+  clearTimeout(qtyWheelScrollTimer);
+  qtyWheelScrollTimer = setTimeout(()=>{
+    const idx = qtyWheelIndexFromScroll();
+    markSelectedWheelItem(idx);
+    document.getElementById('qtyPromptInput').value = (idx + 1) * qtyWheelImb;
+  }, 110);
+}, { passive: true });
+document.getElementById('qtyPromptWheel').addEventListener('click', (e)=>{
+  if(!qtyWheelImb) return;
+  const item = e.target.closest('.qty-prompt-wheel-item');
+  if(!item) return;
+  const idx = Array.from(item.parentElement.querySelectorAll('.qty-prompt-wheel-item')).indexOf(item);
+  document.getElementById('qtyPromptWheel').scrollTo({ top: idx * QTY_WHEEL_ITEM_H, behavior: 'smooth' });
+  markSelectedWheelItem(idx);
+  document.getElementById('qtyPromptInput').value = (idx + 1) * qtyWheelImb;
+});
+// Se l'agente scrive a mano una quantità che è un multiplo esatto dell'imballo, il wheel si
+// riallinea da solo su quel valore (così restano sincronizzati); altrimenti il wheel resta
+// dov'è — digitare un valore libero non è un errore, è semplicemente fuori dai multipli proposti.
+function syncQtyWheelToInputValue(){
+  if(!qtyWheelImb) return;
+  const v = parseFloat(document.getElementById('qtyPromptInput').value);
+  if(!v || v <= 0 || v % qtyWheelImb !== 0) return;
+  const idx = Math.round(v / qtyWheelImb) - 1;
+  if(idx < 0 || idx >= QTY_WHEEL_MAX_MULTIPLES) return;
+  document.getElementById('qtyPromptWheel').scrollTop = idx * QTY_WHEEL_ITEM_H;
+  markSelectedWheelItem(idx);
+}
+document.getElementById('qtyPromptInput').addEventListener('change', syncQtyWheelToInputValue);
 // Tendina di suggerimenti riservata ai codici lampadine OSRAM (prefisso "OS") e al materiale
 // da allestimento per gli agenti (minibox, separatori, cataloghi, ecc.) — non è un
 // autocompletamento generale, scatta solo su questi gruppi specifici perché meno memorizzabili.
@@ -1653,6 +1773,7 @@ function openEditRow(idx){
   codeInput.value = r.match ? r.match.code : r.code;
   refreshQtyPromptPreview();
   document.getElementById('qtyPromptInput').value = r.qtyInput;
+  syncQtyWheelToInputValue();
   document.getElementById('qtyPromptOverlay').classList.add('show');
   document.getElementById('qtyPromptConfirm').textContent = 'Salva modifiche';
   setTimeout(()=>codeInput.focus(), 50);
