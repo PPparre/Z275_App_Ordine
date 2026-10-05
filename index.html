@@ -591,28 +591,38 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     background:#e2eaf1; color:var(--sap-bar-dk); border:1px solid #b9cbdb; border-radius:12px;
     padding:8px 10px; font-size:11.5px; font-weight:500; text-align:left; margin-bottom:10px; line-height:1.35;
   }
-  .qty-prompt-wheel-wrap{ margin-bottom:10px; }
-  .qty-prompt-wheel-label{
-    font-size:10.5px; color:var(--sap-label); text-align:center; margin-bottom:6px; line-height:1.3;
+  /* Picker unico quantità: tamburo scorrevole + valore sempre digitabile al centro, un solo
+     controllo invece di rotella+casella separate. Niente scroll-snap nativo del browser (poco
+     affidabile su alcuni telefoni): l'allineamento al centro è calcolato e forzato via JS. */
+  .qty-wheel-unified{
+    position:relative; height:102px; border-radius:10px; overflow:hidden;
+    background:#fff; border:1px solid var(--sap-field-border); margin-bottom:5px;
+    -webkit-mask-image:linear-gradient(to bottom, transparent 0%, #000 32%, #000 68%, transparent 100%);
+    mask-image:linear-gradient(to bottom, transparent 0%, #000 32%, #000 68%, transparent 100%);
   }
-  .qty-prompt-wheel-frame{ position:relative; height:132px; }
-  .qty-prompt-wheel-highlight{
-    position:absolute; top:50%; left:0; right:0; height:44px; transform:translateY(-50%);
-    background:#fdeceb; border-top:1px solid #f2c2bd; border-bottom:1px solid #f2c2bd;
-    pointer-events:none; z-index:1; border-radius:8px;
+  .qty-wheel-scroller{
+    height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; position:relative; z-index:1;
   }
-  .qty-prompt-wheel{
-    height:100%; overflow-y:auto; scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch;
-    position:relative;
+  .qty-wheel-spacer{ height:34px; }
+  .qty-wheel-item{
+    height:34px; display:flex; align-items:center; justify-content:center;
+    font-size:14px; color:var(--navy, #16202F); font-weight:500;
   }
-  .qty-prompt-wheel-spacer{ height:44px; scroll-snap-align:none; }
-  .qty-prompt-wheel-item{
-    height:44px; display:flex; align-items:center; justify-content:center;
-    scroll-snap-align:center; font-size:14.5px; color:var(--sap-label); font-weight:600;
+  .qty-wheel-center-wrap{
+    position:absolute; top:50%; left:0; right:0; height:34px; transform:translateY(-50%);
+    display:flex; align-items:center; justify-content:center; gap:5px; z-index:3;
+    background:#fff;
   }
-  .qty-prompt-wheel-item b{ font-weight:700; }
-  .qty-prompt-wheel-item.selected{
-    font-size:18px; color:var(--navy, #16202F); font-weight:800;
+  .qty-wheel-input{
+    background:transparent; border:none; outline:none; text-align:right;
+    font-size:16px; font-weight:700; color:var(--brand-red); width:64px; padding:0;
+  }
+  .qty-wheel-input::-webkit-outer-spin-button, .qty-wheel-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; margin:0;
+  }
+  .qty-wheel-unit{ font-size:13px; color:var(--brand-red); font-weight:600; }
+  .qty-wheel-hint{
+    font-size:9.7px; color:var(--sap-label); text-align:center; margin-bottom:10px; line-height:1.25;
   }
   .qty-prompt-label{
     display:block; font-size:11px; color:var(--sap-label); font-weight:700;
@@ -1009,15 +1019,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       non i metri — l'app moltiplica da sola per l'imballo indicato sopra.
     </div>
     <div class="qty-prompt-qbmwarn" id="qtyPromptQbmWarn" style="display:none;"></div>
-    <div id="qtyPromptWheelWrap" class="qty-prompt-wheel-wrap" style="display:none;">
-      <div class="qty-prompt-wheel-label">Scorri per scegliere un multiplo dell'imballo — oppure scrivi la quantità a mano qui sotto</div>
-      <div class="qty-prompt-wheel-frame">
-        <div class="qty-prompt-wheel-highlight"></div>
-        <div id="qtyPromptWheel" class="qty-prompt-wheel"></div>
+    <label class="qty-prompt-label">Quantità da inserire</label>
+    <div id="qtyWheelUnified" class="qty-wheel-unified">
+      <div id="qtyWheelScroller" class="qty-wheel-scroller"></div>
+      <div class="qty-wheel-center-wrap">
+        <input id="qtyPromptInput" type="number" min="0" step="1" inputmode="numeric" class="qty-wheel-input" autocomplete="off">
+        <span id="qtyWheelUnit" class="qty-wheel-unit"></span>
       </div>
     </div>
-    <label for="qtyPromptInput" class="qty-prompt-label">Quantità da inserire</label>
-    <input id="qtyPromptInput" type="number" min="0" step="1" class="qty-prompt-input" inputmode="numeric">
+    <div class="qty-wheel-hint" id="qtyWheelHint">Scorri per scegliere, oppure tocca il numero e scrivi la quantità</div>
     <div class="qty-prompt-actions">
       <button type="button" id="qtyPromptCancel" class="btn-ghost">Annulla</button>
       <button type="button" id="qtyPromptConfirm" class="btn-red">Aggiungi</button>
@@ -1026,7 +1036,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "21.1";
+const APP_VERSION = "22.2";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1551,7 +1561,7 @@ function refreshQtyPromptPreview(){
     warnBox.style.display = 'none';
     meterBox.style.display = 'none';
     specialNote.style.display = 'none';
-    hideQtyWheel();
+    buildQtyWheel('generic');
     return;
   }
   descEl.style.color = '';
@@ -1581,85 +1591,119 @@ function refreshQtyPromptPreview(){
   if(qbmWarn){ warnBox.textContent = qbmWarn; warnBox.style.display = 'block'; }
   else { warnBox.style.display = 'none'; }
 
-  // Il wheel picker (multipli dell'imballo) ha senso solo per articoli venduti a pezzo/collo con
-  // un imballo noto: per i cavi a bobina (um "M") il numero che si scrive qui è il numero di
-  // bobine, non un multiplo dell'imballo, quindi lì resta solo l'inserimento manuale.
-  if(match.um !== 'M' && match.imb && match.imb >= 1){
-    buildQtyWheel(match.imb);
+  // Un solo controllo quantità per tutti i casi: tamburo scorrevole + valore digitabile al
+  // centro. Cosa mostra la lista cambia in base al tipo di articolo, ma il controllo è sempre
+  // lo stesso — mai due caselle separate.
+  if(match.um === 'M'){
+    // Cavi a bobina: qui si conta il numero di BOBINE, non i metri né i multipli d'imballo.
+    buildQtyWheel('bobine');
+  } else if(match.imb && match.imb >= 1){
+    buildQtyWheel('imballo', match.imb);
   } else {
-    hideQtyWheel();
+    buildQtyWheel('generic');
   }
 }
 
-// ---- Wheel picker quantità: striscia verticale con "scroll-snap" che mostra i multipli
-//      dell'imballo (1x, 2x, 3x...), per scegliere in un tocco le quantità più comuni (colli
-//      interi) senza dover digitare. L'input manuale sotto resta sempre attivo e modificabile:
-//      il wheel è solo una scorciatoia, non sostituisce la digitazione libera. ----
-const QTY_WHEEL_ITEM_H = 44;
-const QTY_WHEEL_MAX_MULTIPLES = 50;
-let qtyWheelImb = null;
+// ---- Picker unico quantità: tamburo verticale (solo lettura, sullo sfondo) + input numerico
+//      sempre visibile e digitabile sopra, fissato al centro, che mostra il valore corrente.
+//      Scorrendo il tamburo l'input si aggiorna da solo; scrivendo nell'input il tamburo si
+//      riallinea se il valore scritto è nella lista. Mai due caselle separate: è un controllo
+//      solo, in cui "guardare" e "scrivere" sono la stessa cosa. L'allineamento al centro è
+//      sempre forzato via JS (scrollTo), non lasciato al solo scroll-snap del browser, che su
+//      alcuni telefoni non mostra correttamente l'elemento realmente centrato. ----
+const QTY_WHEEL_ITEM_H = 34;
+let qtyWheelList = [];
 let qtyWheelScrollTimer = null;
-function hideQtyWheel(){
-  document.getElementById('qtyPromptWheelWrap').style.display = 'none';
-  qtyWheelImb = null;
-}
-function buildQtyWheel(imb){
-  qtyWheelImb = imb;
-  const wrap = document.getElementById('qtyPromptWheelWrap');
-  const wheel = document.getElementById('qtyPromptWheel');
-  wrap.style.display = 'block';
-  // Spaziatori vuoti sopra/sotto (invece del padding sul contenitore): più affidabili per
-  // centrare il primo/ultimo elemento dentro la fascia evidenziata su tutti i browser.
-  let html = '<div class="qty-prompt-wheel-spacer"></div>';
-  for(let i = 1; i <= QTY_WHEEL_MAX_MULTIPLES; i++){
-    const qty = i * imb;
-    html += `<div class="qty-prompt-wheel-item" data-qty="${qty}"><b>${qty}</b>&nbsp;pz&nbsp;(${i}&nbsp;×&nbsp;imb.)</div>`;
+let qtyWheelProgrammaticScroll = false;
+// Ricorda quale lista (tipo+parametro) è stata costruita l'ultima volta IN QUESTA apertura del
+// popup: serve a non confondere "sto ricostruendo la stessa lista di prima, quindi mantengo il
+// valore già scelto" con "è cambiato articolo/codice, quindi riparto dal valore di default" —
+// altrimenti un valore lasciato da un'apertura precedente (es. il default generico "1") rischia
+// di essere scambiato per una scelta valida sulla nuova lista. Azzerata ad ogni apertura popup
+// da openQtyPrompt()/openEditRow().
+let qtyWheelLastKey = null;
+
+function buildQtyWheel(mode, param){
+  const scroller = document.getElementById('qtyWheelScroller');
+  const unitEl = document.getElementById('qtyWheelUnit');
+  const input = document.getElementById('qtyPromptInput');
+  let values = [];
+  if(mode === 'imballo'){
+    for(let i = 1; i <= 50; i++) values.push(i * param);
+    unitEl.textContent = 'pz';
+  } else if(mode === 'bobine'){
+    for(let i = 1; i <= 50; i++) values.push(i);
+    unitEl.textContent = 'bobine';
+  } else {
+    for(let i = 1; i <= 200; i++) values.push(i);
+    unitEl.textContent = 'pz';
   }
-  html += '<div class="qty-prompt-wheel-spacer"></div>';
-  wheel.innerHTML = html;
-  wheel.scrollTop = 0;
-  markSelectedWheelItem(0);
+  qtyWheelList = values;
+
+  let html = '<div class="qty-wheel-spacer"></div>';
+  values.forEach(v => { html += `<div class="qty-wheel-item">${v}</div>`; });
+  html += '<div class="qty-wheel-spacer"></div>';
+  scroller.innerHTML = html;
+
+  const key = mode + ':' + (param || '');
+  const sameListAsBefore = (key === qtyWheelLastKey);
+  qtyWheelLastKey = key;
+  const current = parseFloat(input.value);
+
+  if(sameListAsBefore && current && current > 0){
+    // Stessa lista di un attimo fa (es. l'agente ha ritoccato il codice ma è rimasto lo stesso
+    // articolo): mantiene il valore già scelto e riallinea solo la posizione del tamburo.
+    const idx = values.indexOf(current);
+    qtyWheelProgrammaticScroll = true;
+    scroller.scrollTop = idx >= 0 ? idx * QTY_WHEEL_ITEM_H : 0;
+    setTimeout(()=>{ qtyWheelProgrammaticScroll = false; }, 50);
+  } else {
+    // Lista nuova (nuovo articolo, nuova apertura del popup): riparte dal primo valore proposto.
+    qtyWheelProgrammaticScroll = true;
+    scroller.scrollTop = 0;
+    setTimeout(()=>{ qtyWheelProgrammaticScroll = false; }, 50);
+    input.value = values[0];
+  }
 }
-function markSelectedWheelItem(idx){
-  const wheel = document.getElementById('qtyPromptWheel');
-  const items = wheel.querySelectorAll('.qty-prompt-wheel-item');
-  items.forEach(el => el.classList.remove('selected'));
-  if(items[idx]) items[idx].classList.add('selected');
+
+function qtyWheelSnapToScroll(){
+  const scroller = document.getElementById('qtyWheelScroller');
+  if(!qtyWheelList.length) return;
+  let idx = Math.round(scroller.scrollTop / QTY_WHEEL_ITEM_H);
+  idx = Math.max(0, Math.min(qtyWheelList.length - 1, idx));
+  qtyWheelProgrammaticScroll = true;
+  scroller.scrollTo({ top: idx * QTY_WHEEL_ITEM_H, behavior: 'smooth' });
+  setTimeout(()=>{ qtyWheelProgrammaticScroll = false; }, 420);
+  document.getElementById('qtyPromptInput').value = qtyWheelList[idx];
 }
-function qtyWheelIndexFromScroll(){
-  const wheel = document.getElementById('qtyPromptWheel');
-  const idx = Math.round(wheel.scrollTop / QTY_WHEEL_ITEM_H);
-  return Math.max(0, Math.min(QTY_WHEEL_MAX_MULTIPLES - 1, idx));
-}
-document.getElementById('qtyPromptWheel').addEventListener('scroll', ()=>{
-  if(!qtyWheelImb) return;
+document.getElementById('qtyWheelScroller').addEventListener('scroll', ()=>{
+  if(qtyWheelProgrammaticScroll) return;
   clearTimeout(qtyWheelScrollTimer);
-  qtyWheelScrollTimer = setTimeout(()=>{
-    const idx = qtyWheelIndexFromScroll();
-    markSelectedWheelItem(idx);
-    document.getElementById('qtyPromptInput').value = (idx + 1) * qtyWheelImb;
-  }, 110);
+  qtyWheelScrollTimer = setTimeout(qtyWheelSnapToScroll, 150);
 }, { passive: true });
-document.getElementById('qtyPromptWheel').addEventListener('click', (e)=>{
-  if(!qtyWheelImb) return;
-  const item = e.target.closest('.qty-prompt-wheel-item');
+document.getElementById('qtyWheelScroller').addEventListener('click', (e)=>{
+  const item = e.target.closest('.qty-wheel-item');
   if(!item) return;
-  const idx = Array.from(item.parentElement.querySelectorAll('.qty-prompt-wheel-item')).indexOf(item);
-  document.getElementById('qtyPromptWheel').scrollTo({ top: idx * QTY_WHEEL_ITEM_H, behavior: 'smooth' });
-  markSelectedWheelItem(idx);
-  document.getElementById('qtyPromptInput').value = (idx + 1) * qtyWheelImb;
+  const items = Array.from(document.querySelectorAll('#qtyWheelScroller .qty-wheel-item'));
+  const idx = items.indexOf(item);
+  if(idx < 0) return;
+  const scroller = document.getElementById('qtyWheelScroller');
+  qtyWheelProgrammaticScroll = true;
+  scroller.scrollTo({ top: idx * QTY_WHEEL_ITEM_H, behavior: 'smooth' });
+  setTimeout(()=>{ qtyWheelProgrammaticScroll = false; }, 420);
+  document.getElementById('qtyPromptInput').value = qtyWheelList[idx];
 });
-// Se l'agente scrive a mano una quantità che è un multiplo esatto dell'imballo, il wheel si
-// riallinea da solo su quel valore (così restano sincronizzati); altrimenti il wheel resta
-// dov'è — digitare un valore libero non è un errore, è semplicemente fuori dai multipli proposti.
+// Scrivendo a mano un valore presente nella lista, il tamburo si riallinea da solo; un valore
+// libero (non in lista) resta comunque valido, semplicemente il tamburo non si sposta.
 function syncQtyWheelToInputValue(){
-  if(!qtyWheelImb) return;
   const v = parseFloat(document.getElementById('qtyPromptInput').value);
-  if(!v || v <= 0 || v % qtyWheelImb !== 0) return;
-  const idx = Math.round(v / qtyWheelImb) - 1;
-  if(idx < 0 || idx >= QTY_WHEEL_MAX_MULTIPLES) return;
-  document.getElementById('qtyPromptWheel').scrollTop = idx * QTY_WHEEL_ITEM_H;
-  markSelectedWheelItem(idx);
+  if(!v || v <= 0 || !qtyWheelList.length) return;
+  const idx = qtyWheelList.indexOf(v);
+  if(idx < 0) return;
+  const scroller = document.getElementById('qtyWheelScroller');
+  qtyWheelProgrammaticScroll = true;
+  scroller.scrollTop = idx * QTY_WHEEL_ITEM_H;
+  setTimeout(()=>{ qtyWheelProgrammaticScroll = false; }, 50);
 }
 document.getElementById('qtyPromptInput').addEventListener('change', syncQtyWheelToInputValue);
 // Tendina di suggerimenti riservata ai codici lampadine OSRAM (prefisso "OS") e al materiale
@@ -1751,10 +1795,11 @@ document.getElementById('qtyPromptCodeInput').addEventListener('blur', ()=>{
 // quantità; se null (inserimento manuale), il popup si apre vuoto col focus sul campo codice.
 function openQtyPrompt(match){
   const codeInput = document.getElementById('qtyPromptCodeInput');
-  codeInput.value = match ? match.code : '';
-  refreshQtyPromptPreview();
   const qtyInput = document.getElementById('qtyPromptInput');
-  qtyInput.value = '';
+  qtyWheelLastKey = null; // nuova apertura: non ereditare il valore dall'uso precedente del popup
+  qtyInput.value = ''; // azzera PRIMA di ricostruire il tamburo, così riparte sempre dal 1° valore
+  codeInput.value = match ? match.code : '';
+  refreshQtyPromptPreview(); // ricostruisce il tamburo e, se c'è un match, propone già un valore di default
   document.getElementById('qtyPromptOverlay').classList.add('show');
   setTimeout(()=>{ (match ? qtyInput : codeInput).focus(); }, 50);
 }
@@ -1769,6 +1814,7 @@ function openEditRow(idx){
   const r = rows[idx];
   if(!r) return;
   editingRowIndex = idx;
+  qtyWheelLastKey = null; // nuova apertura: non ereditare il valore dall'uso precedente del popup
   const codeInput = document.getElementById('qtyPromptCodeInput');
   codeInput.value = r.match ? r.match.code : r.code;
   refreshQtyPromptPreview();
