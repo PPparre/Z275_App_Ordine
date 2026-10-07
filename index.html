@@ -1008,7 +1008,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <label for="qtyPromptInput" class="qty-prompt-label">Quantità da inserire</label>
     <input id="qtyPromptInput" type="number" min="0" step="1" class="qty-prompt-input" inputmode="numeric">
     <div id="qtyQuickPicksWrap" class="qty-quickpicks-wrap" style="display:none;">
-      <div class="qty-quickpicks-label">Scelta rapida</div>
+      <div class="qty-quickpicks-label" id="qtyQuickPicksLabel">Scelta rapida</div>
       <div id="qtyQuickPicks" class="qty-quickpicks"></div>
     </div>
     <div class="qty-prompt-actions">
@@ -1019,7 +1019,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "23.1";
+const APP_VERSION = "23.2";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1612,6 +1612,8 @@ function buildQtyQuickPicks(mode, param){
   let values = [];
   for(let i = 1; i <= 6; i++) values.push(i * (mode === 'imballo' ? param : 1));
   wrap.style.display = 'block';
+  // Il titolo dice sempre cosa stanno contando i pulsanti: pezzi (multipli dell'imballo) o bobine.
+  document.getElementById('qtyQuickPicksLabel').textContent = 'Scelta rapida \u00b7 ' + (mode === 'bobine' ? 'bobine' : 'pezzi');
   box.innerHTML = values.map(v => `<button type="button" class="qty-quickpick-btn" data-v="${v}">${v}</button>`).join('');
 
   const key = mode + ':' + (param || '');
