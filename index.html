@@ -518,6 +518,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .scan-hint{
     background:rgba(0,0,0,.75); color:#fff; text-align:center; padding:10px 14px; font-size:12.5px;
   }
+  .review-check{
+    background:#fff6e0; border:1px solid #f0d58a; border-radius:12px; padding:10px 12px;
+    margin:10px 0 4px; text-align:left; font-size:12px; line-height:1.4; color:var(--navy, #16202F);
+  }
+  .review-check-title{ font-weight:800; margin-bottom:6px; color:#8a5a00; }
+  .review-check-item{ margin-bottom:6px; }
+  .review-check-foot{ font-size:10.8px; color:var(--sap-label); margin-top:4px; }
   .scan-retry-btn{
     position:absolute; bottom:18px; left:50%; transform:translateX(-50%); z-index:7;
     display:none; align-items:center; gap:7px;
@@ -900,6 +907,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div id="rvArticlesList" class="review-articles-list"></div>
 
     <div class="review-totals" id="rvTotals"></div>
+    <div class="review-check" id="rvLabelChecks" style="display:none;"></div>
 
     <div class="qty-prompt-actions">
       <button type="button" id="btnReviewEdit" class="btn-ghost">Modifica</button>
@@ -1019,7 +1027,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "23.2";
+const APP_VERSION = "24.0";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1643,9 +1651,8 @@ document.getElementById('qtyPromptInput').addEventListener('input', markActiveQu
 // da allestimento per gli agenti (minibox, separatori, cataloghi, ecc.) — non è un
 // autocompletamento generale, scatta solo su questi gruppi specifici perché meno memorizzabili.
 const OS_LIST = DB.filter(e => String(e.code).toUpperCase().startsWith('OS'));
-// Liste di ricerca per i codici etichetta: "sfuso" = codice con la X (99,9% dei casi secondo
-// l'uso reale), "cavi" = unità di misura M. Usate sia nel box di ricerca del popup guidato dai
-// minibox sia in quello richiamabile a mano da "Aggiungi posizione".
+// La ricerca dei codici etichetta (popup guidato dai minibox e popup richiamabile a mano da
+// "Aggiungi posizione") pesca solo gli articoli abbinati a quel tipo dalla colonna etichette del DB.
 // Codici a catalogo dedicati alle etichette stesse (non minibox, non un vero articolo
 // acquistabile): definiti qui, in alto, così sia le liste di ricerca sfuso/cavi sia
 // l'intercettazione nell'inserimento manuale possono escluderli in modo coerente.
@@ -1654,8 +1661,6 @@ const LABEL_MATERIAL_CODES = {
   'ETSF50X70': 'mini_sfuso',
   'ETSFCAVI': 'cavi'
 };
-const LABEL_X_LIST = DB.filter(e => String(e.code).toUpperCase().includes('X') && !LABEL_MATERIAL_CODES[String(e.code).toUpperCase()]);
-const LABEL_M_LIST = DB.filter(e => e.um === 'M' && !LABEL_MATERIAL_CODES[String(e.code).toUpperCase()]);
 
 const DISPLAY_MATERIAL_CODES = [
   'IM95003','IM95004','IM95005','IM95012','IM95013','IM95106','IM95107','IM95108',
@@ -1832,9 +1837,8 @@ const LABEL_NOTE_PHOTOS = {"sfuso": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgwKCA0
 // Un piccolo controllo segnala se un codice scritto non esiste nel catalogo, senza bloccare.
 // Restituisce la stringa dei codici scritti (anche vuota, se ha risposto Sì senza scrivere nulla),
 // oppure null se ha risposto No.
-// Suggerisce in automatico i codici dell'ordine corrente che rispettano il pattern noto:
-// per lo sfuso, codici che contengono la lettera "X" (99,9% dei casi); per i cavi, articoli
-// con unità di misura "M". Resta comunque solo un punto di partenza, modificabile a mano —
+// Suggerisce in automatico i codici dell'ordine corrente abbinati a quel tipo di etichetta dalla
+// colonna etichette del DB (S/M/C). Resta comunque solo un punto di partenza, modificabile a mano —
 // utile soprattutto per aggiungere codici NON presenti in questo specifico ordine.
 // Trova nell'ordine corrente gli articoli candidati per l'etichetta (codice con "X" per lo
 // sfuso, unità di misura "M" per i cavi), escludendo sempre il minibox/separatore stesso.
@@ -1863,13 +1867,16 @@ function updateNoteSegment(labelPrefix, newCodesText, fieldId){
   noteField.dispatchEvent(new Event('input', {bubbles:true}));
 }
 
-// Un articolo può avere un campo esplicito "labelTypes" nel catalogo (es. ['sfuso','cavi']),
-// pensato per quando arriverà la colonna dedicata nel DB: se presente, decide lui a quali
-// tipi di etichetta è abbinato l'articolo. Finché non c'è, resta l'euristica storica basata sul
-// codice (contiene "X" → sfuso/mini sfuso) o sull'unità di misura (M → cavi).
+// A quali tipi di etichetta è abbinabile un articolo lo decide il DB (colonna "Etich. SF", che il
+// catalogo porta come campo "labelTypes"): S = solo standard, M = standard e mini, C = solo cavi
+// al metro. Un articolo senza valore in colonna non è abbinabile a nessuna etichetta. Non conta
+// più la lettera X nel codice: molti articoli non sfusi possono finire nei minibox.
+// Solo se il catalogo caricato non contiene affatto la colonna (vecchia copia in cache sul
+// telefono) si ripiega sulla vecchia regola — codice con "X" → sfuso, U.M. "M" → cavi.
+const CATALOG_HAS_LABEL_COLUMN = DB.some(e => Array.isArray(e.labelTypes));
 function articleMatchesLabelType(entry, key){
-  if(Array.isArray(entry.labelTypes) && entry.labelTypes.length){
-    return entry.labelTypes.includes(key);
+  if(CATALOG_HAS_LABEL_COLUMN){
+    return Array.isArray(entry.labelTypes) && entry.labelTypes.includes(key);
   }
   if(key === 'cavi') return entry.um === 'M';
   return String(entry.code).toUpperCase().includes('X');
@@ -2252,7 +2259,7 @@ async function askAndMergeLabelNote(key){
 }
 
 // Codici a catalogo dedicati alle etichette stesse (LABEL_MATERIAL_CODES è già definito più in
-// alto, vicino a LABEL_X_LIST/LABEL_M_LIST): l'inserimento manuale/scan li blocca (vedi
+// alto, vicino a LABEL_MATERIAL_CODES): l'inserimento manuale/scan li blocca (vedi
 // confirmQtyPrompt), l'unico modo per usarli è il pulsante "Etichette da stampare" o il trigger
 // automatico dai minibox.
 
@@ -3491,6 +3498,46 @@ function formatDateIT(iso){
   const [y,m,d] = iso.split('-');
   return `${d}/${m}/${y}`;
 }
+
+// ---- Controllo automatico etichette sull'ordine: scatta nel riepilogo finale. Segnala (senza
+//      bloccare mai l'invio) due situazioni, basandosi sulla colonna etichette del DB:
+//      1) c'è un minibox/scatola di un certo tipo, o è già stata chiesta quella etichetta, ma nell'ordine ci
+//         sono articoli abbinabili a quel tipo che non risultano nella richiesta etichette;
+//      2) tra i codici già richiesti per un tipo ce n'è qualcuno che il DB non abbina a quel tipo. ----
+function requestedLabelCodes(info){
+  const noteText = document.getElementById('notaPersonale').value || '';
+  const out = [];
+  extractNoteSegmentCodes(info.label, noteText).split(',').forEach(tok=>{
+    const { code } = parseCodeToken(tok);
+    if(code) out.push(code.toUpperCase());
+  });
+  return out;
+}
+function computeLabelChecks(){
+  const noteText = document.getElementById('notaPersonale').value || '';
+  const warnings = [];
+  LABEL_NOTE_INFO.forEach(info=>{
+    const requested = requestedLabelCodes(info);
+    const hasRequest = noteText.includes(info.label);
+    const boxPresent = rows.some(r => r.match && MINIBOX_LABEL_NOTE_MAP[String(r.match.code).toUpperCase()] === info.key);
+    if(boxPresent || hasRequest){
+      const missing = getLabelCandidates(info).filter(c => !requested.includes(String(c.code).toUpperCase()));
+      if(missing.length){
+        const why = hasRequest ? 'non compaiono nella richiesta etichette' : 'nessuna etichetta richiesta';
+        warnings.push(`<b>${info.label}</b>: nell'ordine ${missing.length === 1 ? "c'è 1 articolo abbinabile" : "ci sono " + missing.length + " articoli abbinabili"} a questo tipo (${why}): <span class="codefont">${missing.map(m => m.code).join(', ')}</span>.`);
+      }
+    }
+    const incompatible = requested.filter(code => {
+      const m = findInDB(code);
+      return m && !articleMatchesLabelType(m, info.key);
+    });
+    if(incompatible.length){
+      warnings.push(`<b>${info.label}</b>: ${incompatible.length === 1 ? 'il codice' : 'i codici'} <span class="codefont">${incompatible.join(', ')}</span> ${incompatible.length === 1 ? 'non risulta abbinato' : 'non risultano abbinati'} a questo tipo di etichetta nel DB.`);
+    }
+  });
+  return warnings;
+}
+
 function openReviewOverlay(){
   const { agente, committente, numOrd, dest, dOrdISO, dConsISO, note, notaPersonale } = readHeaderFormData();
   const rowsHtml = [
@@ -3548,6 +3595,18 @@ function openReviewOverlay(){
   document.getElementById('rvTotals').textContent =
     nArticoliVendita + ' articoli di vendita · ' + totImballi.toLocaleString('it-IT') + ' imballi · ' +
     (Math.round(totPezzi*100)/100).toLocaleString('it-IT') + ' pezzi';
+
+  const checks = computeLabelChecks();
+  const checkBox = document.getElementById('rvLabelChecks');
+  if(checks.length){
+    checkBox.innerHTML = '<div class="review-check-title">⚠ Controllo etichette</div>' +
+      checks.map(c => `<div class="review-check-item">${c}</div>`).join('') +
+      '<div class="review-check-foot">Solo un avviso: se è tutto voluto puoi confermare, altrimenti tocca "Modifica".</div>';
+    checkBox.style.display = 'block';
+  } else {
+    checkBox.style.display = 'none';
+    checkBox.innerHTML = '';
+  }
 
   document.getElementById('reviewOverlay').classList.add('show');
 }
