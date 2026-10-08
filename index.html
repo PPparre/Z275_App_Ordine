@@ -887,6 +887,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   </div>
 </div>
 
+<div id="labelAskOverlay" class="entry-choice-overlay">
+  <div class="entry-choice-box" style="text-align:center;">
+    <div class="entry-choice-title">🏷️ Etichette</div>
+    <div id="labelAskImg" class="qty-prompt-img" style="margin:0 auto 12px;"></div>
+    <div id="labelAskDesc" class="qty-prompt-desc"></div>
+    <div id="labelAskQuestion" class="qty-prompt-desc" style="margin-bottom:14px; font-weight:700; color:var(--sap-bar-dk);"></div>
+    <div class="qty-prompt-actions">
+      <button type="button" id="labelAskNo" class="btn-ghost">No, grazie</button>
+      <button type="button" id="labelAskYes" class="btn-red">Sì, scegli i codici</button>
+    </div>
+  </div>
+</div>
+
 <div id="historyOverlay" class="entry-choice-overlay">
   <div class="entry-choice-box" style="max-width:380px; text-align:left; position:relative; max-height:88vh; overflow-y:auto;">
     <button type="button" id="btnHistoryX" class="entry-choice-x" title="Chiudi">✕</button>
@@ -1027,7 +1040,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "24.0";
+const APP_VERSION = "24.1";
 const APP_VERSION_DATE = "09.2026"; // mm.aaaa, aggiornata ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -2263,6 +2276,33 @@ async function askAndMergeLabelNote(key){
 // confirmQtyPrompt), l'unico modo per usarli è il pulsante "Etichette da stampare" o il trigger
 // automatico dai minibox.
 
+// Passo preliminare dopo un minibox/separatore: prima si chiede solo SE servono le etichette
+// (Sì/No, con la foto del tipo giusto); la checklist dei codici si apre solo con il Sì.
+function askLabelYesNo(info){
+  return new Promise(resolve => {
+    const photoB64 = LABEL_NOTE_PHOTOS[info.photoKey];
+    document.getElementById('labelAskImg').innerHTML = photoB64
+      ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${info.label}">`
+      : '🏷️';
+    document.getElementById('labelAskDesc').textContent = info.label;
+    document.getElementById('labelAskQuestion').textContent = info.question;
+    const overlay = document.getElementById('labelAskOverlay');
+    overlay.classList.add('show');
+    const btnYes = document.getElementById('labelAskYes');
+    const btnNo = document.getElementById('labelAskNo');
+    function cleanup(result){
+      overlay.classList.remove('show');
+      btnYes.removeEventListener('click', onYes);
+      btnNo.removeEventListener('click', onNo);
+      resolve(result);
+    }
+    function onYes(){ cleanup(true); }
+    function onNo(){ cleanup(false); }
+    btnYes.addEventListener('click', onYes);
+    btnNo.addEventListener('click', onNo);
+  });
+}
+
 async function offerMinboxAccessories(justAddedCode){
   const code = String(justAddedCode).trim().toUpperCase();
   const separatorCode = MINIBOX_SEPARATOR_MAP[code];
@@ -2277,6 +2317,9 @@ async function offerMinboxAccessories(justAddedCode){
   }
 
   if(!labelNote) return;
+  const labelInfo = LABEL_NOTE_INFO.find(i => i.key === labelNote);
+  const wantsLabels = await askLabelYesNo(labelInfo);
+  if(!wantsLabels) return;
   await askAndMergeLabelNote(labelNote);
 }
 
