@@ -539,23 +539,25 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .scan-retry-btn.show{ display:flex; }
 
   .qty-prompt-overlay{
-    display:none; position:fixed; inset:0; z-index:220; background:rgba(16,35,61,.55);
-    align-items:flex-start; justify-content:center; padding:20px; padding-top:5vh;
-    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    display:none; position:fixed; left:0; right:0; top:var(--vvt,0px); bottom:auto; height:var(--vvh,100%);
+    z-index:220; background:rgba(16,35,61,.55);
+    align-items:flex-start; justify-content:center; padding:6px 8px;
+    overflow:hidden;
   }
   .qty-prompt-overlay.show{ display:flex; }
-  .mode-bar{ display:flex; gap:6px; margin:-4px 0 12px; }
-  .mode-bar button{ flex:1; padding:8px 4px; border-radius:10px; border:1.5px solid #cbd5e1; background:#fff;
+  .mode-bar{ display:flex; gap:6px; margin:0 0 8px; }
+  .mode-bar button{ flex:1; padding:6px 4px; border-radius:10px; border:1.5px solid #cbd5e1; background:#fff;
     color:#334155; font-size:12.5px; font-weight:700; }
   .mode-bar button.active{ border-color:var(--brand-red); background:#fdecef; color:var(--brand-red); }
-  .mode-bar button.fine{ flex:0 0 auto; padding:8px 12px; border-color:#15803d; color:#15803d; }
+  .mode-bar button.fine{ flex:0 0 auto; padding:6px 12px; border-color:#15803d; color:#15803d; }
   .mode-bar-dark{ margin:0; padding:8px 10px; background:var(--sap-bar-dk,#1e293b); }
   .mode-bar-dark button{ background:transparent; color:#fff; border-color:rgba(255,255,255,.4); }
   .mode-bar-dark button.active{ background:#fff; color:var(--brand-red); border-color:#fff; }
   .mode-bar-dark button.fine{ color:#86efac; border-color:#86efac; }
   .qty-prompt-box{
-    background:#fff; border-radius:16px; padding:18px; width:100%; max-width:340px;
+    background:#fff; border-radius:16px; padding:10px 14px 0; width:100%; max-width:360px;
     box-shadow:0 10px 30px rgba(0,0,0,.3); text-align:center;
+    max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
   }
   .qty-prompt-code{ font-size:16px; font-weight:800; color:var(--sap-bar-dk); }
   .qty-prompt-codeinput{
@@ -578,19 +580,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .os-suggest-desc{ font-size:10.5px; color:var(--muted); margin-top:1px; }
   .qty-prompt-codeinput:disabled{ background:#f0f2f4; color:var(--muted); border-color:var(--sap-field-border); }
   .qty-prompt-img{
-    width:110px; height:110px; margin:0 auto 10px; border-radius:14px; background:#f0f2f4;
-    display:flex; align-items:center; justify-content:center; font-size:40px; overflow:hidden;
+    width:84px; height:84px; margin:0 auto 4px; border-radius:12px; background:#f0f2f4;
+    display:flex; align-items:center; justify-content:center; font-size:34px; overflow:hidden;
   }
+  /* con la tastiera aperta la foto si riduce ancora, per lasciare spazio ai pulsanti */
+  .kbd-open .qty-prompt-overlay .qty-prompt-img{ width:60px; height:60px; margin-bottom:2px; font-size:26px; }
   .qty-prompt-img img{ width:100%; height:100%; object-fit:contain; }
-  .qty-prompt-desc{ font-size:12.5px; color:var(--muted); margin-top:2px; margin-bottom:10px; }
+  .qty-prompt-desc{ font-size:12px; line-height:1.2; color:var(--muted); margin-top:1px; margin-bottom:5px; }
   .qty-prompt-special-note{
     display:inline-block; background:#fff3b0; color:#7a5c00; font-weight:700; font-size:10.5px;
-    padding:3px 9px; border-radius:8px; margin-bottom:10px; text-align:center;
+    padding:2px 9px; border-radius:8px; margin-bottom:6px; text-align:center;
   }
   .qty-prompt-infogrid{
-    display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:12px;
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:7px;
   }
-  .qty-prompt-infocell{ background:#f0f2f4; border-radius:12px; padding:6px 2px; overflow:hidden; }
+  .qty-prompt-infocell{ background:#f0f2f4; border-radius:10px; padding:4px 2px; overflow:hidden; }
   .qty-prompt-infolabel{
     font-size:9px; color:var(--sap-label); font-weight:700; text-transform:uppercase;
     letter-spacing:.2px; margin-bottom:2px;
@@ -601,24 +605,24 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   .qty-prompt-qbmwarn{
     background:#fdeceb; color:var(--warn); border:1px solid #f2c2bd; border-radius:12px;
-    padding:8px 10px; font-size:11.5px; font-weight:600; text-align:left; margin-bottom:12px; line-height:1.35;
+    padding:6px 9px; font-size:11px; font-weight:600; text-align:left; margin-bottom:7px; line-height:1.25;
   }
   .qty-prompt-meternote{
     background:#e2eaf1; color:var(--sap-bar-dk); border:1px solid #b9cbdb; border-radius:12px;
-    padding:8px 10px; font-size:11.5px; font-weight:500; text-align:left; margin-bottom:10px; line-height:1.35;
+    padding:6px 9px; font-size:11px; font-weight:500; text-align:left; margin-bottom:7px; line-height:1.25;
   }
   /* Scelta rapida: pulsantini coi multipli più comuni dell'imballo (o delle bobine), per
      velocizzare gli ordini standard senza nessuna delle fragilità di un elemento a scorrimento.
      La casella quantità resta un normalissimo campo numerico, sempre modificabile a mano: i
      pulsanti sono solo una scorciatoia che ci scrive dentro il valore, nient'altro. */
-  .qty-quickpicks-wrap{ margin:-2px 0 14px; }
+  .qty-quickpicks-wrap{ margin:0 0 6px; }
   .qty-quickpicks-label{
     font-size:10px; color:var(--sap-label); font-weight:700; text-transform:uppercase;
-    letter-spacing:.3px; margin-bottom:6px;
+    letter-spacing:.3px; margin-bottom:3px;
   }
   .qty-quickpicks{ display:flex; gap:6px; flex-wrap:wrap; }
   .qty-quickpick-btn{
-    flex:1 1 0; min-width:44px; padding:9px 4px; border-radius:9px;
+    flex:1 1 0; min-width:44px; padding:7px 4px; border-radius:9px;
     border:1px solid var(--sap-field-border); background:#fff; color:var(--navy, #16202F);
     font-size:13px; font-weight:700; text-align:center; transition:background .1s, border-color .1s;
   }
@@ -628,16 +632,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   .qty-prompt-label{
     display:block; font-size:11px; color:var(--sap-label); font-weight:700;
-    text-transform:uppercase; letter-spacing:.3px; margin-bottom:5px; text-align:left;
+    text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px; text-align:left;
   }
   .qty-prompt-input{
     width:100%; border:1px solid var(--sap-field-border); border-radius:10px;
-    padding:12px; font-size:20px; font-weight:700; text-align:center;
-    background:#fdeceb; border-color:#f2c2bd; margin-bottom:14px;
+    padding:8px 10px; font-size:20px; font-weight:700; text-align:center;
+    background:#fdeceb; border-color:#f2c2bd; margin-bottom:7px;
   }
   .qty-prompt-input:focus{ outline:none; border-color:var(--brand-red); box-shadow:0 0 0 2px rgba(226,0,26,.15); }
-  .qty-prompt-actions{ display:flex; gap:8px; }
-  .qty-prompt-actions button{ flex:1; padding:10px; }
+  .qty-prompt-actions{ display:flex; gap:8px; position:sticky; bottom:0; z-index:5; background:#fff; padding:6px 0 10px; }
+  .qty-prompt-actions button{ flex:1; padding:9px; }
 
   .pin-gate{
     position:fixed; inset:0; z-index:500; background:var(--sap-bar);
@@ -957,14 +961,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="entry-choice-grid">
       <button type="button" id="choiceManualBtn" class="entry-choice-btn">
         <span class="entry-choice-icon">⌨️</span>
-        <span>Inserimento<br>Manuale</span>
+        <span>Manuale</span>
       </button>
       <button type="button" id="choiceScanBtn" class="entry-choice-btn">
         <span class="entry-choice-icon">📷</span>
-        <span>Scan<br>Barcode</span>
+        <span>Scan</span>
       </button>
     </div>
-    <button type="button" id="btnFinishEntry" class="entry-choice-finish">✓ Acquisizione terminata</button>
+    <button type="button" id="btnFinishEntry" class="entry-choice-finish">✓ Fine</button>
     <button type="button" id="btnOpenLabelsManual" class="btn-ghost" style="margin-top:8px; width:100%;">🏷️ Etichette da stampare</button>
   </div>
 </div>
@@ -994,7 +998,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 <div id="scanOverlay" class="scan-overlay">
   <div class="scan-header">
     <span>Inquadra il codice a barre (EAN)</span>
-    <button type="button" id="btnScanClose" class="scan-close-btn">✕ Chiudi</button>
   </div>
   <div class="mode-bar mode-bar-dark" id="scanModeBar">
     <button type="button" id="smManual" data-mode="manual">⌨️ Manuale</button>
@@ -1059,7 +1062,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </div>
 
 <script>
-const APP_VERSION = "24.7";
+// v24.8: segue l'area realmente visibile sopra la tastiera, così popup e tasti non finiscono sotto di essa
+(function(){
+  const vv = window.visualViewport;
+  if(!vv) return;
+  function syncVV(){
+    const r = document.documentElement;
+    r.style.setProperty('--vvh', vv.height + 'px');
+    r.style.setProperty('--vvt', vv.offsetTop + 'px');
+    r.classList.toggle('kbd-open', vv.height < window.innerHeight * 0.8);
+  }
+  vv.addEventListener('resize', syncVV);
+  vv.addEventListener('scroll', syncVV);
+  syncVV();
+})();
+const APP_VERSION = "25.0";
 const APP_VERSION_DATE = "09.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1794,6 +1811,7 @@ function openQtyPrompt(match){
   document.getElementById('qtyPromptOverlay').classList.add('show');
   // v24.7: barra di cambio modalità (solo in aggiunta, non in modifica riga)
   document.getElementById('qtyModeBar').style.display = 'flex';
+  document.getElementById('qtyPromptCancel').style.display = 'none'; // v24.9: in aggiunta si esce con "Fine"
   document.getElementById('qmManual').classList.toggle('active', lastEntryMode === 'manual');
   document.getElementById('qmScan').classList.toggle('active', lastEntryMode === 'scan');
   setTimeout(()=>{ (match ? qtyInput : codeInput).focus(); }, 50);
@@ -1810,6 +1828,7 @@ function openEditRow(idx){
   if(!r) return;
   editingRowIndex = idx;
   document.getElementById('qtyModeBar').style.display = 'none'; // v24.7: in modifica non si cambia modalità
+  document.getElementById('qtyPromptCancel').style.display = ''; // v24.9: in modifica "Annulla" serve per rinunciare
   qtyQuickLastKey = null; // nuova apertura: non ereditare il valore dall'uso precedente del popup
   const codeInput = document.getElementById('qtyPromptCodeInput');
   codeInput.value = r.match ? r.match.code : r.code;
@@ -2007,9 +2026,9 @@ function askLabelNoteConfirm(info){
         ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${desc || code}" style="width:100%; height:100%; object-fit:contain;">`
         : '📦';
     }
-    function rowHtml(code, desc, qty){
+    function rowHtml(code, desc, qty, isChecked){
       return `
-        <input type="checkbox" class="label-note-check" data-code="${code}" checked style="width:19px; height:19px; flex-shrink:0; accent-color:var(--brand-red);">
+        <input type="checkbox" class="label-note-check" data-code="${code}" ${isChecked === false ? '' : 'checked'} style="width:19px; height:19px; flex-shrink:0; accent-color:var(--brand-red);">
         <div style="flex:1; min-width:0;">
           <div class="codefont" style="font-weight:700;">${code}</div>
           <div style="font-size:11px; color:var(--muted);">${desc || ''}</div>
@@ -2023,17 +2042,25 @@ function askLabelNoteConfirm(info){
     // questo stesso tipo (anche se aggiunti a mano e non più "candidati" in senso stretto): così
     // riaprendo il popup si vede sempre l'elenco completo di quello che è già stato richiesto, e
     // si può togliere qualcosa togliendo la spunta, non solo aggiungere.
+    // v25.0: se per questo tipo di etichetta c'è già una richiesta confermata (anche vuota, «da stampare»),
+    // il checklist la rispecchia: sono spuntati SOLO i codici già salvati, gli altri candidati dell'ordine
+    // compaiono ma senza spunta. Alla prima apertura (nessuna richiesta ancora) restano tutti spuntati.
+    const alreadyRequested = String(document.getElementById('notaPersonale').value || '')
+      .split(' - ').some(part => part.trim().startsWith(info.label));
     const seenCodes = new Set();
     const combined = [];
     candidates.forEach(c=>{
       const up = String(c.code).toUpperCase();
-      if(!seenCodes.has(up)){ seenCodes.add(up); combined.push({ code: c.code, desc: c.desc }); }
+      if(!seenCodes.has(up)){
+        seenCodes.add(up);
+        combined.push({ code: c.code, desc: c.desc, checked: !alreadyRequested || (up in existingQtyMap) });
+      }
     });
     Object.keys(existingQtyMap).forEach(upCode=>{
       if(seenCodes.has(upCode)) return;
       seenCodes.add(upCode);
       const match = findInDB(upCode);
-      combined.push({ code: match ? match.code : upCode, desc: match ? match.desc : '' });
+      combined.push({ code: match ? match.code : upCode, desc: match ? match.desc : '', checked: true });
     });
     const listEl = document.getElementById('labelNoteChecklist');
     const emptyHint = document.getElementById('labelNoteEmptyHint');
@@ -2044,7 +2071,7 @@ function askLabelNoteConfirm(info){
       emptyHint.style.display = 'none';
       listEl.innerHTML = combined.map(c=>`
         <label class="history-item" style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
-          ${rowHtml(c.code, c.desc, existingQtyMap[String(c.code).toUpperCase()])}
+          ${rowHtml(c.code, c.desc, existingQtyMap[String(c.code).toUpperCase()], c.checked)}
         </label>`).join('');
     }
     // il click sulla quantità non deve far scattare/togliere la selezione della checkbox
@@ -2456,10 +2483,7 @@ function restartScanner(){
 }
 document.getElementById('btnScanRetry').addEventListener('click', restartScanner);
 
-document.getElementById('btnScanClose').addEventListener('click', ()=>{
-  closeScanner();
-  openEntryChoice(); // annullando la scansione, si torna al popup di scelta
-});
+// v24.9: il vecchio tasto "Chiudi" è stato tolto: per uscire dalla scansione c'è "Fine" nella barra in alto
 
 function addRow(codeRaw, qtyRaw, cliOverride){
   const code = (codeRaw||"").trim();
