@@ -123,6 +123,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     padding:12px 14px 10px; border-bottom:1px solid var(--line);
   }
   .card-body{ padding:2px 12px 4px; }
+  section.card h2.pos-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .btn-clear-pos{ background:#fff; color:var(--warn); border:1.5px solid var(--warn); border-radius:8px;
+    font-size:12px; font-weight:700; padding:5px 10px; white-space:nowrap; }
 
   /* ---- Card testata in tema scuro continuo (Agente/Committente/Destinazione come righe di
          testo semplici su sfondo scuro, non più caselle bordate bianche) ---- */
@@ -472,6 +475,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
 
   .history-list{ display:flex; flex-direction:column; gap:8px; }
+  /* v25.1: righe della checklist etichette più ravvicinate (solo in questo popup) */
+  #labelNoteChecklist{ gap:4px; }
+  #labelNoteChecklist .history-item{ padding:5px 10px; border-radius:10px; }
   .history-item{
     background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px;
   }
@@ -579,12 +585,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .os-suggest-code{ font-weight:700; font-size:12.5px; font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace; }
   .os-suggest-desc{ font-size:10.5px; color:var(--muted); margin-top:1px; }
   .qty-prompt-codeinput:disabled{ background:#f0f2f4; color:var(--muted); border-color:var(--sap-field-border); }
+  /* v25.1: la foto è grande (fino a 140 px) e si rimpicciolisce solo se serve, per far stare tutto il
+     popup, tasto «Aggiungi» compreso, nello spazio visibile sopra la tastiera (vedi fitQtyPhoto) */
   .qty-prompt-img{
-    width:84px; height:84px; margin:0 auto 4px; border-radius:12px; background:#f0f2f4;
-    display:flex; align-items:center; justify-content:center; font-size:34px; overflow:hidden;
+    width:var(--qimg,140px); height:var(--qimg,140px); margin:0 auto 4px; border-radius:12px; background:#f0f2f4;
+    display:flex; align-items:center; justify-content:center; font-size:calc(var(--qimg,140px) * .4); overflow:hidden;
   }
-  /* con la tastiera aperta la foto si riduce ancora, per lasciare spazio ai pulsanti */
-  .kbd-open .qty-prompt-overlay .qty-prompt-img{ width:60px; height:60px; margin-bottom:2px; font-size:26px; }
   .qty-prompt-img img{ width:100%; height:100%; object-fit:contain; }
   .qty-prompt-desc{ font-size:12px; line-height:1.2; color:var(--muted); margin-top:1px; margin-bottom:5px; }
   .qty-prompt-special-note{
@@ -640,7 +646,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     background:#fdeceb; border-color:#f2c2bd; margin-bottom:7px;
   }
   .qty-prompt-input:focus{ outline:none; border-color:var(--brand-red); box-shadow:0 0 0 2px rgba(226,0,26,.15); }
-  .qty-prompt-actions{ display:flex; gap:8px; position:sticky; bottom:0; z-index:5; background:#fff; padding:6px 0 10px; }
+  .qty-prompt-actions{ display:flex; gap:8px; position:sticky; bottom:0; z-index:5; background:inherit; padding:6px 0 10px; }
   .qty-prompt-actions button{ flex:1; padding:9px; }
 
   .pin-gate{
@@ -788,7 +794,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   </section>
 
   <section class="card">
-    <h2>Tutte le posizioni (<span id="rowCount">0</span>)</h2>
+    <h2 class="pos-head">
+      <span>Tutte le posizioni (<span id="rowCount">0</span>)</span>
+      <button type="button" id="btnClearPositions" class="btn-clear-pos" style="display:none;">🗑️ Svuota posizioni</button>
+    </h2>
     <div id="posSearchWrap" style="display:none; padding:8px 12px 4px;">
       <input type="text" id="posSearchInput" placeholder="🔍 Cerca per codice o descrizione…" style="width:100%; padding:8px 10px; border:1px solid var(--sap-field-border); border-radius:5px; font-size:12.5px; box-sizing:border-box;">
     </div>
@@ -1044,8 +1053,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       </div>
     </div>
     <div class="qty-prompt-meternote" id="qtyPromptMeterNote" style="display:none;">
-      <b>Cavo venduto a bobina:</b> la quantità che scrivi qui sotto è il <b>numero di bobine</b>,
-      non i metri — l'app moltiplica da sola per l'imballo indicato sopra.
+      <b>Cavo a bobina:</b> scrivi il numero di <b>bobine</b>, non i metri.
     </div>
     <div class="qty-prompt-qbmwarn" id="qtyPromptQbmWarn" style="display:none;"></div>
     <label for="qtyPromptInput" class="qty-prompt-label">Quantità da inserire</label>
@@ -1071,12 +1079,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     r.style.setProperty('--vvh', vv.height + 'px');
     r.style.setProperty('--vvt', vv.offsetTop + 'px');
     r.classList.toggle('kbd-open', vv.height < window.innerHeight * 0.8);
+    if(typeof fitQtyPhoto === 'function') fitQtyPhoto();
   }
   vv.addEventListener('resize', syncVV);
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "25.0";
+const APP_VERSION = "25.2";
 const APP_VERSION_DATE = "09.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1248,11 +1257,10 @@ function qbmWarningFor(match){
   const thisIsQbm = codeUp.includes('QBM');
   const sameImb = other.imb === match.imb;
   const imbNote = sameImb
-    ? `stesso imballo (${match.imb} ${match.um}), ma la bobina QBM ha un diametro più piccolo`
-    : `imballo diverso: ${other.imb} ${other.um} invece di ${match.imb} ${match.um}`;
-  return `⚠ Attenzione bobina: questo è il codice ${thisIsQbm ? 'QBM' : 'senza QBM'}, `
-    + `esiste anche ${thisIsQbm ? 'senza QBM' : 'con QBM'} (${other.code}) — ${imbNote}. `
-    + `Verifica di aver scelto quello giusto prima di confermare la quantità.`;
+    ? `stesso imballo, ma bobina QBM più piccola`
+    : `imballo ${other.imb} ${other.um} invece di ${match.imb} ${match.um}`;
+  // v25.1: avviso accorciato (stesse informazioni, meno spazio)
+  return `⚠ Esiste anche ${thisIsQbm ? 'senza QBM' : 'con QBM'} (${other.code}): ${imbNote}. Controlla il codice.`;
 }
 
 let rows = []; // {code, qtyInput, cli, match, qtyFinal, needsMeters}
@@ -1260,7 +1268,8 @@ let rows = []; // {code, qtyInput, cli, match, qtyFinal, needsMeters}
 // la prima volta ciascuna tipologia di etichetta, per mostrarla in "Tutte le posizioni" nella
 // stessa posizione in cui è stata davvero inserita, invece di accodarla sempre in fondo. Non
 // tocca in alcun modo il file xlsx, che ignora le etichette a prescindere.
-let labelInsertSeq = {};
+let labelInsertSeq = {};   // tipo etichetta -> numero progressivo di inserimento (serve solo per ordinarle tra loro)
+let labelSeqCounter = 0;
 let selectedRow = null; // riga di AGENTI_TABLE corrispondente ad agente+committente+destinazione scelti
 
 function normalize(s){ return (s===undefined||s===null) ? "" : s.toString().trim().toUpperCase(); }
@@ -1734,13 +1743,20 @@ const LABEL_MATERIAL_CODES = {
 
 const DISPLAY_MATERIAL_CODES = [
   'IM95003','IM95004','IM95005','IM95012','IM95013','IM95106','IM95107','IM95108',
-  'FONDO GANCIO','SP90816','SP90817','ZP60001'
+  'FONDO GANCIO','SP90813','SP90816','SP90817','SP90826','ZP60001'
 ];
 const DISPLAY_MATERIAL_KEYWORD_MAP = {
   'MINIBOX': ['IM95003','IM95005','IM95012','IM95106','IM95107','IM95108'],
   'SEPARATORE': ['IM95004','IM95013'],
   'AVANA': ['IM95106','IM95107','IM95108'],
   'CATALOGO': ['ZP60001'],
+  // v25.2: bobine e rulliere di cartone (materiale da allestimento per i cavi)
+  'BOBINA': ['SP90813','SP90826'],
+  'BOBINE': ['SP90813','SP90816','SP90817','SP90826'],
+  'RULLIERA': ['SP90816','SP90817'],
+  'RULLIERE': ['SP90816','SP90817'],
+  'CARTONE': ['SP90813','SP90816','SP90817'],
+  'PS': ['SP90826'],
   'SCHEDE FONDO GANCIO': ['FONDO GANCIO'],
   'FONDO GANCIO': ['FONDO GANCIO']
 };
@@ -1801,6 +1817,27 @@ document.getElementById('qtyPromptCodeInput').addEventListener('blur', ()=>{
 
 // match: se arriva da una scansione, il codice è già noto e si passa direttamente al focus sulla
 // quantità; se null (inserimento manuale), il popup si apre vuoto col focus sul campo codice.
+const QIMG_MAX = 140, QIMG_MIN = 56;
+function fitQtyPhoto(){
+  const ov = document.getElementById('qtyPromptOverlay');
+  if(!ov.classList.contains('show')) return;
+  const box = ov.querySelector('.qty-prompt-box');
+  const img = document.getElementById('qtyPromptImg');
+  const cur = img.getBoundingClientRect().width;
+  if(!cur || !box.clientHeight) return;
+  const avail = ov.clientHeight - 12;                       // spazio utile (padding del contenitore escluso)
+  const atMax = box.scrollHeight + (QIMG_MAX - cur);        // altezza del contenuto con la foto al massimo
+  const over = Math.max(0, atMax - avail);
+  const size = Math.round(Math.max(QIMG_MIN, Math.min(QIMG_MAX, QIMG_MAX - over)));
+  if(Math.abs(size - cur) < 1) return;
+  box.style.setProperty('--qimg', size + 'px');
+}
+(function(){
+  const box = document.querySelector('#qtyPromptOverlay .qty-prompt-box');
+  if(box && window.MutationObserver){
+    new MutationObserver(()=>fitQtyPhoto()).observe(box, { childList:true, subtree:true, attributes:true, characterData:true, attributeFilter:['style','class'] });
+  }
+})();
 function openQtyPrompt(match){
   const codeInput = document.getElementById('qtyPromptCodeInput');
   const qtyInput = document.getElementById('qtyPromptInput');
@@ -1814,6 +1851,7 @@ function openQtyPrompt(match){
   document.getElementById('qtyPromptCancel').style.display = 'none'; // v24.9: in aggiunta si esce con "Fine"
   document.getElementById('qmManual').classList.toggle('active', lastEntryMode === 'manual');
   document.getElementById('qmScan').classList.toggle('active', lastEntryMode === 'scan');
+  fitQtyPhoto();
   setTimeout(()=>{ (match ? qtyInput : codeInput).focus(); }, 50);
 }
 let editingRowIndex = null;
@@ -1836,6 +1874,7 @@ function openEditRow(idx){
   document.getElementById('qtyPromptInput').value = r.qtyInput;
   markActiveQuickPick();
   document.getElementById('qtyPromptOverlay').classList.add('show');
+  fitQtyPhoto();
   document.getElementById('qtyPromptConfirm').textContent = 'Salva modifiche';
   setTimeout(()=>codeInput.focus(), 50);
 }
@@ -2070,7 +2109,7 @@ function askLabelNoteConfirm(info){
     } else {
       emptyHint.style.display = 'none';
       listEl.innerHTML = combined.map(c=>`
-        <label class="history-item" style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+        <label class="history-item" style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0;">
           ${rowHtml(c.code, c.desc, existingQtyMap[String(c.code).toUpperCase()], c.checked)}
         </label>`).join('');
     }
@@ -2113,7 +2152,7 @@ function askLabelNoteConfirm(info){
       emptyHint.style.display = 'none';
       const row = document.createElement('label');
       row.className = 'history-item';
-      row.style.cssText = 'display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;';
+      row.style.cssText = 'display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0;';
       row.innerHTML = rowHtml(code, desc, qty);
       row.querySelector('.label-note-qty').addEventListener('click', ev=>ev.stopPropagation());
       row.querySelector('.label-note-qty').addEventListener('mousedown', ev=>ev.stopPropagation());
@@ -2333,7 +2372,7 @@ async function askAndMergeLabelNote(key){
   const info = LABEL_NOTE_INFO.find(i => i.key === key);
   const codesResult = await askLabelNoteConfirm(info);
   if(codesResult === null) return;
-  if(!(key in labelInsertSeq)) labelInsertSeq[key] = rows.length; // prima volta per questo tipo: ricorda il punto in cui è stata inserita
+  if(!(key in labelInsertSeq)) labelInsertSeq[key] = ++labelSeqCounter; // v25.1: ricorda solo l'ordine tra i tipi; le etichette stanno sempre in fondo
   // Il checklist ora mostra sempre anche i codici già salvati in precedenza per questo tipo
   // (oltre ai candidati auto-rilevati), tutti spuntati di default: il risultato che torna da
   // askLabelNoteConfirm è quindi già l'elenco COMPLETO e definitivo per questo tipo — comprese le
@@ -2813,6 +2852,12 @@ function removeLabelType(key){
 
 function renderRows(){
   invalidateGeneratedFile();
+  // v25.1: gli articoli di vendita restano per primi; minibox, separatori e altro materiale di consumo
+  // vanno sempre in coda (nell'ordine in cui sono stati inseriti), anche se aggiunti dopo. Le etichette
+  // stanno poi dopo tutte le righe. Il riordino vale per tabella, riepilogo e file Excel.
+  rows = rows.map((r,i)=>[r,i])
+    .sort((a,b)=> ((a[0].match && isNeverCodedMaterial(a[0].match.code)) ? 1 : 0) - ((b[0].match && isNeverCodedMaterial(b[0].match.code)) ? 1 : 0) || a[1]-b[1])
+    .map(x=>x[0]);
   const container = document.getElementById('rowsContainer');
   const summary = document.getElementById('ordSummary');
   document.getElementById('rowCount').textContent = rows.length;
@@ -2820,6 +2865,7 @@ function renderRows(){
   const notaPersonaleVal = document.getElementById('notaPersonale').value || '';
   const labelInfosPresent = LABEL_NOTE_INFO.filter(info => notaPersonaleVal.includes(info.label));
   syncGenericLabelNoteInOrderNotes(labelInfosPresent.length > 0);
+  document.getElementById('btnClearPositions').style.display = (rows.length > 0 || labelInfosPresent.length > 0) ? '' : 'none';
   saveDraft();
   if(rows.length===0 && labelInfosPresent.length===0){
     container.innerHTML = '<div class="empty-hint" id="emptyHint">Nessuna posizione ancora aggiunta.</div>';
@@ -2889,9 +2935,6 @@ function renderRows(){
   // articolo — restano comunque sola lettura, si modificano dal popup o dal box nel riepilogo.
   // Non finiscono mai nel file xlsx, solo nel testo della mail: quello ignora le etichette a
   // prescindere dalla posizione mostrata qui.
-  labelInfosPresent.filter(info => (labelInsertSeq[info.key] || 0) === 0)
-    .forEach(info => tbody.appendChild(buildLabelRow(info)));
-
   rows.forEach((r, idx) => {
     const ok = !!r.match;
     const tr = document.createElement('tr');
@@ -2945,14 +2988,12 @@ function renderRows(){
     `;
     tbody.appendChild(tr);
 
-    // etichette inserite subito dopo questa riga (in base a quante righe c'erano al momento)
-    labelInfosPresent.filter(info => (labelInsertSeq[info.key] || 0) === idx + 1)
-      .forEach(info => tbody.appendChild(buildLabelRow(info)));
   });
 
-  // rete di sicurezza: un tipo la cui posizione salvata non corrisponde più a nessuna riga
-  // attuale (es. dopo aver rimosso degli articoli) va comunque mostrato, in fondo
-  labelInfosPresent.filter(info => (labelInsertSeq[info.key] || 0) > rows.length)
+  // v25.1: le righe etichette stanno sempre in fondo, dopo articoli e materiale di consumo, nell'ordine
+  // in cui sono state richieste (anche se non c'è nessun articolo, o se gli articoli sono stati aggiunti dopo)
+  labelInfosPresent.slice()
+    .sort((a,b)=> (labelInsertSeq[a.key]||0) - (labelInsertSeq[b.key]||0))
     .forEach(info => tbody.appendChild(buildLabelRow(info)));
 
   wrap.appendChild(table);
@@ -3154,6 +3195,30 @@ function clearHeader(){
   updateHeaderWizardState();
   clearDraft();
 }
+// Svuota posizioni: elimina tutte le righe (articoli, minibox, separatori) e le richieste etichette,
+// ma lascia intatta la testata (agente, committente, destinazione, numero e date, Note Ordine).
+function clearPositionsOnly(){
+  const noteEl = document.getElementById('notaPersonale');
+  const labelsPresent = LABEL_NOTE_INFO.filter(info => (noteEl.value || '').includes(info.label));
+  if(rows.length === 0 && labelsPresent.length === 0){
+    showToast('Non ci sono posizioni da eliminare.');
+    return;
+  }
+  const nArt = rows.length;
+  const dettaglio = (nArt ? nArt + (nArt === 1 ? ' articolo' : ' articoli') : '') +
+    (nArt && labelsPresent.length ? ' e ' : '') + (labelsPresent.length ? 'le richieste di etichette' : '');
+  if(!confirm('Eliminare tutte le posizioni (' + dettaglio + ')?\n\nLa testata dell\'ordine resta com\'è.')) return;
+  rows = [];
+  const parts = (noteEl.value || '').split(' - ').map(p => p.trim())
+    .filter(p => p && !LABEL_NOTE_INFO.some(info => p.startsWith(info.label)));
+  noteEl.value = parts.join(' - ');
+  noteEl.dispatchEvent(new Event('input', {bubbles:true}));
+  labelInsertSeq = {};
+  document.getElementById('posSearchInput').value = '';
+  renderRows();
+  showToast('Posizioni eliminate: la testata è rimasta.');
+}
+document.getElementById('btnClearPositions').addEventListener('click', clearPositionsOnly);
 document.getElementById('btnClearHeader').addEventListener('click', ()=>{
   if(!confirm("Svuotare tutto (testata e tutte le posizioni inserite)?")) return;
   clearHeader();
@@ -3718,6 +3783,7 @@ function openReviewOverlay(){
   const noteText = document.getElementById('notaPersonale').value || '';
   const labelNotesHtml = LABEL_NOTE_INFO
     .filter(info => noteText.includes(info.label))
+    .sort((a,b)=> (labelInsertSeq[a.key]||0) - (labelInsertSeq[b.key]||0))
     .map(info => {
       const currentCodes = formatCodesForDisplay(extractNoteSegmentCodes(info.label, noteText));
       const codesLine = currentCodes
