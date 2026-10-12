@@ -257,6 +257,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     font-weight:700; font-size:13.5px;
   }
   .btn-red{ background:var(--brand-red); color:#fff; padding:10px 14px; width:100%; box-shadow:0 3px 8px rgba(226,0,26,.28); }
+  .btn-red[disabled]{ background:#c9ced6; color:#6b7280; box-shadow:none; cursor:not-allowed; }
+  /* v25.3: articolo fuori produzione (FP) */
+  .qty-prompt-img{ position:relative; }
+  .qty-prompt-img.is-fp img{ filter:grayscale(.8); opacity:.8; }
+  .fp-stamp{
+    position:absolute; top:5px; right:5px; width:max(36px, calc(var(--qimg,140px) * .34)); height:max(36px, calc(var(--qimg,140px) * .34));
+    border-radius:50%; background:var(--brand-red); color:#fff; border:2.5px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.35);
+    display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:.5px;
+    font-size:max(15px, calc(var(--qimg,140px) * .15)); transform:rotate(-14deg); line-height:1;
+  }
+  .qty-prompt-fpbox{
+    background:#fdecee; border:2px solid var(--brand-red); border-radius:12px; color:#b3122a; text-align:center;
+    padding:9px 8px; margin-bottom:8px; font-weight:900; font-size:15px; letter-spacing:.3px; line-height:1.2;
+  }
+  .qty-prompt-fpbox small{ display:block; font-weight:700; font-size:11px; letter-spacing:0; margin-top:2px; color:#8f1d2c; }
   .btn-red:active{ background:#b30015; }
   .btn-ghost{ background:#fff; color:var(--sap-bar-dk); border:1px solid var(--sap-field-border); padding:9px 12px; }
   .btn-small{ padding:6px 9px; font-size:12px; }
@@ -1037,6 +1052,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div id="osSuggest" class="os-suggest"></div>
     </div>
     <div class="qty-prompt-desc" id="qtyPromptDesc"></div>
+    <div id="qtyPromptFpBox" class="qty-prompt-fpbox" style="display:none;">ART. FUORI PRODUZIONE<small>Non ordinabile: non può essere aggiunto all'ordine</small></div>
     <div id="qtyPromptSpecialNote" class="qty-prompt-special-note" style="display:none;">⚠ Art. Particolare</div>
     <div class="qty-prompt-infogrid">
       <div class="qty-prompt-infocell">
@@ -1056,7 +1072,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <b>Cavo a bobina:</b> scrivi il numero di <b>bobine</b>, non i metri.
     </div>
     <div class="qty-prompt-qbmwarn" id="qtyPromptQbmWarn" style="display:none;"></div>
-    <label for="qtyPromptInput" class="qty-prompt-label">Quantità da inserire</label>
+    <div class="qty-prompt-meternote" id="qtyPromptTwinNote" style="display:none;"></div>
+    <label for="qtyPromptInput" id="qtyPromptQtyLabel" class="qty-prompt-label">Quantità da inserire</label>
     <input id="qtyPromptInput" type="number" min="0" step="1" class="qty-prompt-input" inputmode="numeric">
     <div id="qtyQuickPicksWrap" class="qty-quickpicks-wrap" style="display:none;">
       <div class="qty-quickpicks-label" id="qtyQuickPicksLabel">Scelta rapida</div>
@@ -1085,8 +1102,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "25.2";
-const APP_VERSION_DATE = "09.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
+const APP_VERSION = "25.4";
+const APP_VERSION_DATE = "12.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
 const DEFAULT_LEAD_BUSINESS_DAYS = 4;
@@ -1243,6 +1260,7 @@ DB.forEach(e => {
 // sceglie una delle due varianti, nel caso ne esista un'altra con imballo diverso.
 const QBM_GROUPS = {};
 DB.forEach(e => {
+  if(e.fp) return; // i fuori produzione non entrano negli avvisi QBM
   const canon = String(e.code).toUpperCase().replace(/QBM/g, '');
   if(!QBM_GROUPS[canon]) QBM_GROUPS[canon] = [];
   QBM_GROUPS[canon].push(e);
@@ -1560,8 +1578,16 @@ document.getElementById('choiceScanBtn').addEventListener('click', ()=>{
 
 function handleScannedCode(code){
   if(!scanActive || !code) return;
-  const matches = BARCODE_INDEX[code.trim()];
+  let matches = BARCODE_INDEX[code.trim()];
   const hint = document.getElementById('scanHint');
+  // v25.3: se l'EAN è condiviso tra articoli attivi e fuori produzione, si propongono solo gli attivi
+  // (e si avvisa); se sono tutti fuori produzione si mostra comunque il popup, che non permette l'ordine.
+  if(matches && matches.length > 1){
+    const attivi = matches.filter(m => !m.fp), fpTw = matches.filter(m => m.fp);
+    if(attivi.length && fpTw.length){
+      matches = attivi; // la nota sulla variante FP compare nel popup dell'articolo attivo
+    }
+  }
   if(matches && matches.length === 1){
     scanActive = false;
     closeScanner();
@@ -1584,7 +1610,7 @@ function openBarcodeAmbiguity(matches){
   box.innerHTML = matches.map((m, i) => `
     <button type="button" class="entry-choice-btn barcode-ambiguity-btn" data-idx="${i}">
       <span class="codefont" style="font-size:14px; font-weight:800;">${m.code}</span>
-      <span style="font-size:10.5px; color:var(--muted); font-weight:600;">Imballo: ${m.imb!=null?m.imb:'—'} ${m.um||''}</span>
+      <span style="font-size:10.5px; color:var(--muted); font-weight:600;">${m.fp ? 'FUORI PRODUZIONE · ' : ''}Imballo: ${m.imb!=null?m.imb:'—'} ${m.um||''}</span>
     </button>
   `).join('');
   box.querySelectorAll('.barcode-ambiguity-btn').forEach(btn=>{
@@ -1609,6 +1635,35 @@ document.getElementById('barcodeAmbiguityCancel').addEventListener('click', clos
 let qtyPromptMatch = null;
 let lastEntryMode = 'manual'; // 'manual' | 'scan', usato solo per sapere dove rimandare il focus
 
+// v25.3: articolo fuori produzione -> si vede (foto con bollo FP, dati, scritta rossa) ma non si può
+// inserire la quantità né aggiungerlo all'ordine.
+// v25.4: se un articolo attivo ha una variante fuori produzione con lo stesso EAN, nel popup dell'attivo
+// compare solo una nota; la scansione e l'ordine dell'articolo attivo restano liberi.
+function fpTwinsOf(match){
+  if(!match || match.fp || !match.barcode) return [];
+  const own = String(match.code).toUpperCase();
+  return (BARCODE_INDEX[String(match.barcode).trim()] || [])
+    .filter(e => e.fp && String(e.code).toUpperCase() !== own).map(e => e.code);
+}
+function updateTwinNote(match){
+  const box = document.getElementById('qtyPromptTwinNote');
+  const tw = fpTwinsOf(match);
+  if(!tw.length){ box.style.display = 'none'; return; }
+  box.textContent = (tw.length === 1
+    ? 'ℹ La variante ' + tw[0] + ' è fuori produzione: inserendo quel codice non è ordinabile.'
+    : 'ℹ Le varianti ' + tw.join(', ') + ' sono fuori produzione: inserendo quei codici non sono ordinabili.');
+  box.style.display = 'block';
+}
+function setQtyPromptFpMode(on){
+  document.getElementById('qtyPromptFpBox').style.display = on ? 'block' : 'none';
+  document.getElementById('qtyPromptQtyLabel').style.display = on ? 'none' : '';
+  document.getElementById('qtyPromptInput').style.display = on ? 'none' : '';
+  if(on) document.getElementById('qtyQuickPicksWrap').style.display = 'none';
+  const btn = document.getElementById('qtyPromptConfirm');
+  btn.disabled = !!on;
+  btn.textContent = on ? 'Non ordinabile' : (editingRowIndex !== null ? 'Salva' : 'Aggiungi');
+  document.getElementById('qtyPromptImg').classList.toggle('is-fp', !!on);
+}
 function refreshQtyPromptPreview(){
   const raw = document.getElementById('qtyPromptCodeInput').value.trim();
   const match = raw ? findInDB(raw) : null;
@@ -1631,12 +1686,14 @@ function refreshQtyPromptPreview(){
     warnBox.style.display = 'none';
     meterBox.style.display = 'none';
     specialNote.style.display = 'none';
+    updateTwinNote(null);
+    setQtyPromptFpMode(false);
     buildQtyQuickPicks('generic');
     return;
   }
   descEl.style.color = '';
   descEl.textContent = match.desc || '';
-  specialNote.style.display = match.yellow ? 'inline-block' : 'none';
+  specialNote.style.display = (match.yellow && !match.fp) ? 'inline-block' : 'none';
   const cliVal = cliForMatch(match);
   if(cliVal){
     cliEl.textContent = cliVal;
@@ -1653,7 +1710,20 @@ function refreshQtyPromptPreview(){
 
   const photoIdx = PRODUCT_PHOTOS_INDEX[String(match.code)];
   const photoB64 = (photoIdx !== undefined) ? PRODUCT_PHOTOS_LIST[photoIdx] : null;
-  imgBox.innerHTML = photoB64 ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${match.code}">` : '📦';
+  imgBox.innerHTML = (photoB64 ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${match.code}">` : '📦')
+    + (match.fp ? '<span class="fp-stamp" aria-label="Fuori produzione">FP</span>' : '');
+
+  if(match.fp){
+    // fuori produzione: nessun avviso su cavi/QBM, nessuna quantità, nessun pulsante di aggiunta
+    cliEl.textContent = '—'; cliEl.style.color = '';
+    meterBox.style.display = 'none';
+    warnBox.style.display = 'none';
+    updateTwinNote(null);
+    setQtyPromptFpMode(true);
+    return;
+  }
+  setQtyPromptFpMode(false);
+  updateTwinNote(match);
 
   meterBox.style.display = (match.um === 'M') ? 'block' : 'none';
 
@@ -1729,7 +1799,7 @@ document.getElementById('qtyPromptInput').addEventListener('input', markActiveQu
 // Tendina di suggerimenti riservata ai codici lampadine OSRAM (prefisso "OS") e al materiale
 // da allestimento per gli agenti (minibox, separatori, cataloghi, ecc.) — non è un
 // autocompletamento generale, scatta solo su questi gruppi specifici perché meno memorizzabili.
-const OS_LIST = DB.filter(e => String(e.code).toUpperCase().startsWith('OS'));
+const OS_LIST = DB.filter(e => !e.fp && String(e.code).toUpperCase().startsWith('OS'));
 // La ricerca dei codici etichetta (popup guidato dai minibox e popup richiamabile a mano da
 // "Aggiungi posizione") pesca solo gli articoli abbinati a quel tipo dalla colonna etichette del DB.
 // Codici a catalogo dedicati alle etichette stesse (non minibox, non un vero articolo
@@ -2012,7 +2082,7 @@ function getLabelCandidates(info){
   return out;
 }
 function labelSearchPool(info){
-  return DB.filter(e => !isNeverCodedMaterial(e.code) && articleMatchesLabelType(e, info.key));
+  return DB.filter(e => !e.fp && !isNeverCodedMaterial(e.code) && articleMatchesLabelType(e, info.key));
 }
 
 // Popup con elenco a checkbox degli articoli già individuati automaticamente (pre-selezionati,
@@ -2161,6 +2231,7 @@ function askLabelNoteConfirm(info){
     }
     function addExtraCode(code){
       const match = findInDB(code);
+      if(match && match.fp){ showToast('Articolo fuori produzione: non si possono richiedere etichette.'); return; }
       const qty = Math.max(1, parseInt(extraQtyInput.value, 10) || 1);
       ensureCodeChecked(code, match ? match.desc : '', qty);
       extraInput.value = '';
@@ -2441,6 +2512,8 @@ async function offerMinboxAccessories(justAddedCode){
 async function confirmQtyPrompt(){
   if(editingRowIndex !== null){ saveEditedRow(); return; }
   const code = document.getElementById('qtyPromptCodeInput').value.trim();
+  { const m = code ? findInDB(code) : null;
+    if(m && m.fp){ showToast('Articolo fuori produzione: non ordinabile.'); return; } }
 
   if(!code){
     showToast("Inserisci un codice articolo.");
@@ -2527,6 +2600,8 @@ document.getElementById('btnScanRetry').addEventListener('click', restartScanner
 function addRow(codeRaw, qtyRaw, cliOverride){
   const code = (codeRaw||"").trim();
   const qty = parseFloat(qtyRaw);
+  { const m0 = code ? findInDB(code) : null;
+    if(m0 && m0.fp){ showToast('Articolo fuori produzione: non ordinabile.'); return; } }
   if(!code || isNaN(qty) || qty<=0){
     showToast("Codice e quantità validi sono obbligatori.");
     return;
@@ -2718,6 +2793,16 @@ function openHistoryOverlay(){
 function closeHistoryOverlay(){
   document.getElementById('historyOverlay').classList.remove('show');
 }
+// v25.3: se un articolo di una bozza o di un vecchio ordine è nel frattempo diventato fuori produzione,
+// non viene riportato nell'ordine e l'agente viene avvisato.
+function dropFpRows(){
+  const gone = rows.filter(r => r.match && r.match.fp).map(r => r.match.code);
+  if(gone.length){
+    rows = rows.filter(r => !(r.match && r.match.fp));
+    alert('Attenzione: ' + (gone.length === 1 ? 'questo articolo è' : 'questi articoli sono') + ' fuori produzione e non ' +
+          (gone.length === 1 ? 'è stato riportato' : 'sono stati riportati') + ' nell\'ordine:\n' + gone.join(', '));
+  }
+}
 function duplicateFromHistory(i){
   const history = loadHistory();
   const h = history[i];
@@ -2756,6 +2841,7 @@ function duplicateFromHistory(i){
     const cli = dr.cliOverride || cliForMatch(match);
     return { code: dr.code, qtyInput: dr.qtyInput, match, cli, qtyFinal: suggested, needsMeters };
   });
+  dropFpRows();
   renderRows();
   updateHeaderWizardState();
   showToast('Ordine duplicato: assegna un nuovo N. Ordine e una Data Consegna.');
@@ -2818,6 +2904,7 @@ function restoreDraft(draft){
     const cli = dr.cliOverride || cliForMatch(match);
     return { code: dr.code, qtyInput: dr.qtyInput, match, cli, qtyFinal: suggested, needsMeters };
   });
+  dropFpRows();
   renderRows();
   updateHeaderWizardState();
   showToast('Ordine ripristinato.');
@@ -3073,6 +3160,8 @@ function showToast(msg){
 // onNeedsCorrection: richiamata quando l'utente deve correggere la quantità (query non aggiunta).
 function addArticleWithChecks(code, qtyRaw, onNeedsCorrection){
   const qty = parseFloat(qtyRaw);
+  { const m0 = code.trim() ? findInDB(code.trim()) : null;
+    if(m0 && m0.fp){ showToast('Articolo fuori produzione: non ordinabile.'); return false; } }
 
   if(!code.trim() || isNaN(qty) || qty <= 0){
     addRow(code, qtyRaw); // lascia che addRow mostri il messaggio di errore standard
@@ -3940,7 +4029,7 @@ document.getElementById('btnOpenMail').addEventListener('click', (e)=>{
 
 document.getElementById('pinVersionTag').textContent = 'v. ' + APP_VERSION + ' (' + APP_VERSION_DATE + ')';
 document.getElementById('dbStat').innerHTML =
-  '<div>' + DB.length.toLocaleString('it-IT') + ' articoli Poly Pool disponibili a catalogo · v. ' + APP_VERSION + ' (' + APP_VERSION_DATE + ')</div>' +
+  '<div>' + DB.filter(e => !e.fp).length.toLocaleString('it-IT') + ' articoli Poly Pool disponibili a catalogo · v. ' + APP_VERSION + ' (' + APP_VERSION_DATE + ')</div>' +
   '<div style="margin-top:3px;">Assistenza e aggiornamenti: <a href="mailto:paolobigoni@polypool.it?subject=' + encodeURIComponent('Aggiornamento/Richiesta di assistenza') + '" style="color:inherit;">paolobigoni@polypool.it</a></div>';
 updateHeaderWizardState();
 
