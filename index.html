@@ -262,17 +262,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .qty-prompt-img{ position:relative; }
   .qty-prompt-img.is-fp img{ filter:grayscale(.8); opacity:.8; }
   .fp-stamp{
-    position:absolute; top:5px; right:5px; width:max(36px, calc(var(--qimg,140px) * .34)); height:max(36px, calc(var(--qimg,140px) * .34));
-    border-radius:50%; background:var(--brand-red); color:#fff; border:2.5px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.35);
+    position:absolute; top:0; right:-48px; width:clamp(42px, calc(var(--qimg,140px) * .52), 80px); height:clamp(42px, calc(var(--qimg,140px) * .52), 80px);
+    border-radius:50%; background:var(--brand-red); color:#fff; border:3px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,.4);
     display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:.5px;
-    font-size:max(15px, calc(var(--qimg,140px) * .15)); transform:rotate(-14deg); line-height:1;
+    font-size:clamp(18px, calc(var(--qimg,140px) * .21), 34px); transform:rotate(-14deg); line-height:1;
   }
   /* v25.6: articoli Selex (private label, codice con D) */
   .selex-stamp{
-    position:absolute; top:3px; right:3px; width:max(48px, calc(var(--qimg,140px) * .38)); line-height:0;
-    transform:rotate(-7deg); filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));
+    position:absolute; top:2px; right:-58px; width:clamp(62px, calc(var(--qimg,140px) * .68), 108px); line-height:0;
+    transform:rotate(-7deg); filter:drop-shadow(0 3px 5px rgba(0,0,0,.4));
   }
   .selex-stamp img{ width:100%; height:auto; display:block; }
+  /* v26.2: i bolli stanno in un contenitore che non ritaglia, così sporgono dall'angolo della foto senza coprirla troppo */
+  .qty-prompt-imgwrap{ position:relative; width:var(--qimg,140px); height:var(--qimg,140px); margin:0 auto 4px; }
+  .qty-prompt-imgwrap .qty-prompt-img{ width:100%; height:100%; margin:0; }
+  .qty-prompt-stamps{ position:absolute; inset:0; pointer-events:none; z-index:2; }
   .row-thumb{ position:relative; }
   .postable .row-thumb img.selex-mini{ position:absolute; right:0; bottom:0; width:20px; height:auto; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.45)); }
   .qty-prompt-fpbox{
@@ -760,8 +764,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="card-body" style="padding:6px 14px 8px;">
       <div class="sap-row">
         <label for="inAgente">👤 Agente</label>
-        <input id="inAgente" type="text" list="agentiList" placeholder="es. Bonito" title="Elenco parziale d'esempio: puoi digitare liberamente.">
-        <datalist id="agentiList"></datalist>
+        <select id="inAgente" title="Scegli l'agente"><option value="">— scegli l'agente —</option></select>
       </div>
       <div style="padding:8px 0 2px;">
         <button type="button" id="btnHeaderWizard" class="header-wizard-btn compact">
@@ -1053,7 +1056,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <button type="button" id="qmScan" data-mode="scan">📷 Scan</button>
       <button type="button" id="qmFine" class="fine">✓ Fine</button>
     </div>
-    <div class="qty-prompt-img" id="qtyPromptImg">📦</div>
+    <div class="qty-prompt-imgwrap" id="qtyPromptImgWrap"><div class="qty-prompt-img" id="qtyPromptImg">📦</div><div class="qty-prompt-stamps" id="qtyPromptStamps"></div></div>
     <label for="qtyPromptCodeInput" class="qty-prompt-label" style="text-align:center;">Codice articolo</label>
     <div style="position:relative;">
       <input id="qtyPromptCodeInput" type="text" class="codefont qty-prompt-codeinput" autocapitalize="characters" autocomplete="off">
@@ -1110,8 +1113,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "25.9";
-const APP_VERSION_DATE = "13.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
+const APP_VERSION = "26.2";
+const APP_VERSION_DATE = "15.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
 const DEFAULT_LEAD_BUSINESS_DAYS = 4;
@@ -1129,11 +1132,16 @@ const PIN_USERS = {
   "1234": { role: "agente", nome: "La Vela" }
 };
 
+let lastAutoNumOrdine = '';   // ultimo valore proposto in automatico (nome dell'agente in maiuscolo)
 function maybeDefaultNumOrdine(){
   const field = document.getElementById('numOrdine');
-  if(field.value.trim() !== '') return; // già compilato (da bozza, storico o a mano): non lo tocco
+  const cur = field.value.trim();
+  // già compilato a mano (o da bozza/storico) con un valore diverso da quello proposto: non lo tocco
+  if(cur !== '' && cur !== lastAutoNumOrdine) return;
   const agente = document.getElementById('inAgente').value.trim();
-  if(agente) field.value = agente.toUpperCase();
+  const nuovo = agente ? agente.toUpperCase() : '';
+  field.value = nuovo;
+  lastAutoNumOrdine = nuovo;
 }
 
 function tryPinLogin(){
@@ -1151,7 +1159,7 @@ function tryPinLogin(){
 
   if(user.role === 'agente'){
     const agenteInput = document.getElementById('inAgente');
-    agenteInput.value = user.nome;
+    setAgenteValue(user.nome);
     agenteInput.disabled = true;
     agenteInput.style.background = '#f0f2f4';
     agenteInput.style.color = 'var(--muted)';
@@ -1209,6 +1217,8 @@ updateConnIndicator();
 
 let DB = [];
 let AGENTI_TABLE = [];
+let CATALOGO_VERSIONE = '';          // versione del catalogo.json caricato (es. '1.4')
+let CATALOGO_OBSOLETO = false;       // true se il catalogo è stato generato con un convertitore vecchio
 // Il catalogo (articoli + destinazioni) non e' piu' scritto qui dentro: viene caricato da un
 // file esterno (catalogo.json) pubblicato su GitHub insieme a questo index.html. Così un
 // aggiornamento del DB richiede solo di sostituire quel file, senza ricostruire l'intera app.
@@ -1217,10 +1227,33 @@ let AGENTI_TABLE = [];
 // sotto, dà per scontato che DB/AGENTI_TABLE siano già pronti quando viene eseguito.
 const CATALOGO_URL = 'https://raw.githubusercontent.com/ppparre/Z275_App_Ordine/main/catalogo.json';
 (function loadCatalogoSync(){
+  // v26.0: il convertitore versione 1.3+ aggiunge al catalogo i marcatori FP e Selex. Un catalogo più vecchio
+  // (generato con il vecchio convertitore) non li ha: l'app lo segnala con un avviso e, per i Selex, ricava da sola
+  // il gemello D dai codici (stessa regola del convertitore: codice che finisce per D e codice base esistente).
+  function versionLess(a, b){
+    const pa = String(a).split('.').map(n => parseInt(n, 10) || 0), pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+    for(let i = 0; i < Math.max(pa.length, pb.length); i++){
+      const x = pa[i] || 0, y = pb[i] || 0;
+      if(x !== y) return x < y;
+    }
+    return false;
+  }
   function applyCatalogo(cat){
     DB = cat.articoli || [];
     AGENTI_TABLE = cat.destinazioni || [];
     try{ localStorage.setItem('z275_catalogo_cache', JSON.stringify(cat)); }catch(e){}
+    CATALOGO_VERSIONE = String(cat.versione || '1.0');
+    CATALOGO_OBSOLETO = versionLess(CATALOGO_VERSIONE, '1.3');
+    if(CATALOGO_OBSOLETO){
+      const byCode = new Map(DB.map(e => [String(e.code).trim().toUpperCase(), e]));
+      DB.forEach(e => {
+        const c = String(e.code).trim();
+        if(!e.selex && /D$/.test(c) && c.length > 2){
+          const base = byCode.get(c.slice(0, -1).toUpperCase());
+          if(base){ e.selex = true; e.selexBase = String(base.code).trim(); }
+        }
+      });
+    }
   }
   let loaded = false;
   try{
@@ -1237,6 +1270,14 @@ const CATALOGO_URL = 'https://raw.githubusercontent.com/ppparre/Z275_App_Ordine/
       const cached = localStorage.getItem('z275_catalogo_cache');
       if(cached){ applyCatalogo(JSON.parse(cached)); loaded = true; }
     }catch(e){}
+  }
+  if(loaded && CATALOGO_OBSOLETO){
+    document.addEventListener('DOMContentLoaded', function(){
+      const old = document.createElement('div');
+      old.style.cssText = 'background:#c8102e; color:#fff; padding:8px 12px; font-weight:700; text-align:center; font-size:12.5px; line-height:1.3;';
+      old.textContent = '\u26A0 Catalogo non aggiornato (v' + CATALOGO_VERSIONE + '): i fuori produzione NON sono bloccati. Avvisa l\'ufficio: va rigenerato con il nuovo convertitore.';
+      document.body.prepend(old);
+    });
   }
   if(!loaded || !DB.length){
     document.addEventListener('DOMContentLoaded', function(){
@@ -1768,6 +1809,7 @@ function refreshQtyPromptPreview(){
     descEl.style.color = raw ? 'var(--warn)' : '';
     cliEl.textContent = '—'; eanEl.textContent = '—'; imbEl.textContent = '—';
     imgBox.innerHTML = '📦';
+    document.getElementById('qtyPromptStamps').innerHTML = '';
     warnBox.style.display = 'none';
     meterBox.style.display = 'none';
     specialNote.style.display = 'none';
@@ -1794,8 +1836,10 @@ function refreshQtyPromptPreview(){
   imbEl.textContent = (match.imb!=null ? match.imb : '—') + (match.um ? ' ' + match.um : '');
 
   const photoB64 = photoB64For(match.code);
-  imgBox.innerHTML = (photoB64 ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${match.code}">` : '📦')
-    + (match.fp ? '<span class="fp-stamp" aria-label="Fuori produzione">FP</span>' : '')
+  imgBox.innerHTML = (photoB64 ? `<img src="data:image/jpeg;base64,${photoB64}" alt="${match.code}">` : '📦');
+  // i bolli stanno fuori dal riquadro della foto (che ritaglia): così possono sporgere dall'angolo
+  document.getElementById('qtyPromptStamps').innerHTML =
+      (match.fp ? '<span class="fp-stamp" aria-label="Fuori produzione">FP</span>' : '')
     + (match.selex ? SELEX_STAMP_HTML : '');
 
   if(match.fp){
@@ -2935,7 +2979,7 @@ function duplicateFromHistory(i){
   closeHistoryOverlay();
 
   if(!document.getElementById('inAgente').disabled && h.agente){
-    document.getElementById('inAgente').value = h.agente;
+    setAgenteValue(h.agente);
   }
   refreshCommittenteOptions();
   if(h.committente){
@@ -3003,7 +3047,7 @@ function checkForDraft(){
 
 function restoreDraft(draft){
   if(!document.getElementById('inAgente').disabled && draft.agente){
-    document.getElementById('inAgente').value = draft.agente;
+    setAgenteValue(draft.agente);
   }
   refreshCommittenteOptions();
   if(draft.committente){
@@ -3362,14 +3406,27 @@ function destinazioniFor(agente, committente){
     .sort((a,b) => a.destMerci.localeCompare(b.destMerci, 'it', {sensitivity:'base'}));
 }
 
+// v26.1: l'agente è una vera tendina (prima era un campo di testo con suggerimenti, che su Android mostrava
+// solo i nomi simili a quello già scritto e non permetteva di passare a un altro agente senza cancellare).
 function populateAgentiDatalist(){
-  const dl = document.getElementById('agentiList');
-  dl.innerHTML = '';
+  const sel = document.getElementById('inAgente');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— scegli l\'agente —</option>';
   uniqueAgenti().forEach(a=>{
     const opt = document.createElement('option');
-    opt.value = a;
-    dl.appendChild(opt);
+    opt.value = a; opt.textContent = a;
+    sel.appendChild(opt);
   });
+  if(cur) setAgenteValue(cur);
+}
+// imposta l'agente nella tendina; se il nome non è nell'elenco lo aggiunge (bozze/storico/PIN)
+function setAgenteValue(nome){
+  const sel = document.getElementById('inAgente');
+  const v = String(nome || '').trim();
+  if(v && !Array.from(sel.options).some(o => o.value === v)){
+    const opt = document.createElement('option'); opt.value = v; opt.textContent = v; sel.appendChild(opt);
+  }
+  sel.value = v;
 }
 populateAgentiDatalist();
 
@@ -3484,9 +3541,11 @@ function refreshDestinazioneOptions(){
     destinazioni.map(r => `<option value="${r.destMerci}">${r.destMerci}</option>`).join('');
 }
 
-document.getElementById('inAgente').addEventListener('input', refreshCommittenteOptions);
-document.getElementById('inAgente').addEventListener('input', saveDraft);
-document.getElementById('inAgente').addEventListener('input', maybeDefaultNumOrdine);
+['input', 'change'].forEach(ev => {
+  document.getElementById('inAgente').addEventListener(ev, refreshCommittenteOptions);
+  document.getElementById('inAgente').addEventListener(ev, saveDraft);
+  document.getElementById('inAgente').addEventListener(ev, maybeDefaultNumOrdine);
+});
 document.getElementById('inCommittente').addEventListener('change', refreshDestinazioneOptions);
 document.getElementById('inDestinazione').addEventListener('change', ()=>{
   const agente = document.getElementById('inAgente').value.trim();
@@ -4153,7 +4212,7 @@ document.getElementById('btnOpenMail').addEventListener('click', (e)=>{
 
 document.getElementById('pinVersionTag').textContent = 'v. ' + APP_VERSION + ' (' + APP_VERSION_DATE + ')';
 document.getElementById('dbStat').innerHTML =
-  '<div>' + DB.filter(e => !e.fp && !e.selex).length.toLocaleString('it-IT') + ' articoli Poly Pool disponibili a catalogo · v. ' + APP_VERSION + ' (' + APP_VERSION_DATE + ')</div>' +
+  '<div>' + DB.filter(e => !e.fp && !e.selex).length.toLocaleString('it-IT') + ' articoli Poly Pool disponibili a catalogo · v. ' + APP_VERSION + ' (' + APP_VERSION_DATE + ') · cat. ' + CATALOGO_VERSIONE + '</div>' +
   '<div style="margin-top:3px;">Assistenza e aggiornamenti: <a href="mailto:paolobigoni@polypool.it?subject=' + encodeURIComponent('Aggiornamento/Richiesta di assistenza') + '" style="color:inherit;">paolobigoni@polypool.it</a></div>';
 updateHeaderWizardState();
 

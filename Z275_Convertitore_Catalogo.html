@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Z275 · Convertitore Catalogo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --red:#C8102E; --navy:#232F45; --navy-dk:#16202F; --gray:#5B6472; --line:#DADDE2; --bg:#F3F4F6;
+    --ok:#1E8E3E; --warn:#B45309;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--navy); line-height:1.5;
+  }
+  header{
+    background:var(--navy); color:#fff; padding:18px 20px calc(18px + env(safe-area-inset-top,0px));
+    padding-top:calc(18px + env(safe-area-inset-top,0px));
+  }
+  header h1{margin:0; font-size:19px; font-weight:800;}
+  header p{margin:4px 0 0; font-size:13px; color:#B9C2D0;}
+  main{max-width:720px; margin:0 auto; padding:20px 16px 60px;}
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px;
+    margin-bottom:16px; box-shadow:0 1px 2px rgba(16,35,61,.04);
+  }
+  .card h2{margin:0 0 10px; font-size:15px; font-weight:800; color:var(--navy);}
+  .card p{margin:0 0 10px; font-size:13.5px; color:var(--gray);}
+  .drop{
+    border:2px dashed var(--line); border-radius:12px; padding:28px 16px; text-align:center;
+    cursor:pointer; transition:background .15s, border-color .15s;
+  }
+  .drop.drag{background:#FFF1F1; border-color:var(--red);}
+  .drop .icon{font-size:34px; margin-bottom:8px;}
+  .drop b{color:var(--navy);}
+  input[type=file]{display:none;}
+  .filename{margin-top:10px; font-size:13px; color:var(--navy); font-weight:700;}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    border:none; border-radius:10px; padding:12px 18px; font-size:14px; font-weight:700;
+    cursor:pointer; width:100%; margin-top:10px;
+  }
+  .btn-red{background:var(--red); color:#fff;}
+  .btn-red:disabled{background:#E7A3AC; cursor:not-allowed;}
+  .btn-ghost{background:#fff; color:var(--navy); border:1px solid var(--line);}
+  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0;}
+  .stat{background:var(--bg); border-radius:10px; padding:12px 8px; text-align:center;}
+  .stat b{display:block; font-size:22px; color:var(--navy);}
+  .stat span{font-size:11px; color:var(--gray);}
+  .warn-box{
+    background:#FFF8E6; border:1px solid #F0D58A; border-radius:10px; padding:10px 12px;
+    font-size:12.5px; color:var(--warn); margin-top:10px;
+  }
+  .ok-box{
+    background:#EAF7EE; border:1px solid #BFE6CB; border-radius:10px; padding:10px 12px;
+    font-size:12.5px; color:var(--ok); margin-top:10px;
+  }
+  .log{
+    max-height:160px; overflow-y:auto; background:var(--bg); border-radius:8px; padding:8px 10px;
+    font-size:11.5px; font-family:'SFMono-Regular',Consolas,monospace; color:var(--gray); margin-top:8px;
+  }
+  .log div{padding:2px 0; border-bottom:1px solid #E5E7EA;}
+  .log div:last-child{border-bottom:none;}
+  ol{font-size:13.5px; color:var(--navy); padding-left:20px; margin:0;}
+  ol li{margin-bottom:8px;}
+  code{background:var(--bg); padding:1px 5px; border-radius:4px; font-size:12.5px;}
+  .hidden{display:none;}
+  footer{text-align:center; font-size:11.5px; color:var(--gray); padding:10px 0 30px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏷️ Z275 · Convertitore Catalogo</h1>
+  <p>Trasforma il file Excel del DB in <code>catalogo.json</code>, pronto da caricare su GitHub — senza passare da Claude.</p>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>1. Carica il file Excel</h2>
+    <p>Lo stesso file <code>DB_Z275_Agenti-Clienti</code> che aggiorni sempre — foglio "DB", stessa struttura di colonne di sempre.</p>
+    <div class="drop" id="dropZone">
+      <div class="icon">📄</div>
+      <div><b>Tocca per scegliere il file</b><br>o trascinalo qui</div>
+      <div class="filename" id="filename"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm">
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <h2>2. Controllo risultato</h2>
+    <div class="stat-grid">
+      <div class="stat"><b id="statArticoli">—</b><span>articoli</span></div>
+      <div class="stat"><b id="statDestinazioni">—</b><span>destinazioni</span></div>
+      <div class="stat"><b id="statCommittenti">—</b><span>committenti</span></div>
+    </div>
+    <div id="warnBox"></div>
+    <div id="okBox"></div>
+    <div id="logWrap" class="hidden">
+      <p style="margin-top:12px; margin-bottom:4px;"><b>Dettagli:</b></p>
+      <div class="log" id="logBox"></div>
+    </div>
+    <button class="btn btn-red" id="downloadBtn" disabled>⬇️ Scarica catalogo.json</button>
+  </div>
+
+  <div class="card">
+    <h2>3. Pubblica su GitHub</h2>
+    <ol>
+      <li>Vai su <code>github.com/ppparre/Z275_App_Ordine</code></li>
+      <li>Apri <code>catalogo.json</code> esistente, tocca l'icona della matita (Edit)</li>
+      <li>Cancella tutto il contenuto, incolla quello del nuovo file scaricato</li>
+      <li>In fondo tocca <b>"Commit changes…"</b> e conferma</li>
+    </ol>
+    <p style="margin-top:12px;">Fatto questo, l'app si aggiorna da sola al prossimo avvio — non serve toccare <code>index.html</code>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Cosa puoi cambiare da solo</h2>
+    <p><b>Articoli</b> — aggiungi, modifica o elimina righe nel foglio "DB" come hai sempre fatto. Questo strumento legge tutto da capo ogni volta.</p>
+    <p><b>Nuovi committenti o destinazioni</b> — aggiungi righe nel blocco destinazioni (colonne D→I) con lo stesso formato delle altre. Se il nuovo committente gestisce una codifica cliente propria, aggiungi anche una nuova colonna con il suo codice numerico come intestazione (come per gli altri).</p>
+    <p><b>Colonna etichette ("Etich. SF")</b> &mdash; per ogni articolo scrivi <code>S</code> (solo etichette standard), <code>M</code> (standard e mini) o <code>C</code> (solo cavi al metro); lascia vuoto se l'articolo non va abbinato a nessuna etichetta. &Egrave; questa colonna, non pi&ugrave; la X nel codice, a decidere quali articoli l'app propone per le etichette.</p>
+    <p><b>Articoli fuori produzione</b> &mdash; scrivi <code>FP</code> nella colonna <b>Gerarchia</b> (famiglia) dell'articolo, e se vuoi colora il codice di rosso. &Egrave; la famiglia FP a decidere: l'app mostra l'articolo con il bollo FP ma non permette di inserirne la quantit&agrave; n&eacute; di aggiungerlo all'ordine. Per riabilitare un articolo basta cambiargli la famiglia. La riga separatrice (es. &laquo;ELIMINATI - FUORI PRODUZIONE&raquo;), senza descrizione, viene ignorata.</p>
+    <p><b>Colonne dei codici cliente</b> &mdash; nel DB tieni solo le colonne dei clienti che hanno davvero dei codici: un cliente <b>senza colonna</b> non ha una codifica e nell'app non compare mai la scritta NON CODIFICATO. Un cliente <b>con colonna</b> vede NON CODIFICATO sugli articoli che non hanno il suo codice. Le colonne vuote si possono eliminare senza conseguenze.</p>
+    <p><b>Articoli Selex (private label)</b> &mdash; un articolo con codice che finisce per <code>D</code> (es. PP0433D) il cui codice senza D esiste gi&agrave; nel DB (PP0433) &egrave; riconosciuto come articolo Selex. L'app lo mostra <b>solo ai clienti Selex</b>, cio&egrave; ai committenti che hanno il codice cliente su almeno un articolo D (oggi GMF 1011032); gli articoli D che per quel cliente non hanno ancora il codice si possono ordinare e compaiono come <b>NON CODIFICATO</b>. Ai clienti Selex l'app nasconde invece la versione senza D, e usa la foto dell'articolo base. Per aggiungere un altro cliente Selex basta compilare la sua colonna di codici cliente sugli articoli D.</p>
+    <div class="warn-box">⚠ Le <b>foto prodotto</b> restano un'eccezione: quelle vanno sempre fatte aggiornare a Claude, questo strumento non le tocca. Le foto mancanti si controllano con l'elenco apposito.</div>
+  </div>
+
+</main>
+
+<footer>Poly Pool · Z275 · strumento ad uso interno</footer>
+
+<script>
+let generatedBlob = null;
+let generatedFilename = 'catalogo.json';
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const filenameEl = document.getElementById('filename');
+const resultCard = document.getElementById('resultCard');
+const downloadBtn = document.getElementById('downloadBtn');
+
+dropZone.addEventListener('click', () => fileInput.click());
+['dragover','dragenter'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('drag'); }));
+dropZone.addEventListener('drop', e => {
+  if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if(e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file){
+  filenameEl.textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type:'array', cellStyles:true });
+      processWorkbook(wb);
+    } catch(err){
+      alert('Non sono riuscito a leggere il file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function cellVal(ws, r, c){
+  const addr = XLSX.utils.encode_cell({r:r-1, c:c-1});
+  const cell = ws[addr];
+  return cell ? cell.v : undefined;
+}
+function cellIsYellow(ws, r, c){
+  // Lettura del colore di riempimento: dipende dalla libreria gratuita usata qui, non sempre
+  // disponibile per ogni file. Trattato come "non so" (false) quando non riesce a leggerlo.
+  try{
+    const addr = XLSX.utils.encode_cell({r:r-1, c:c-1});
+    const cell = ws[addr];
+    if(!cell || !cell.s) return false;
+    const fg = cell.s.fgColor || (cell.s.fill && cell.s.fill.fgColor);
+    if(!fg || !fg.rgb) return false;
+    const rgb = String(fg.rgb).toUpperCase();
+    return rgb === 'FFFF00' || rgb === 'FFFFFF00' || rgb === '00FFFF00';
+  }catch(e){ return false; }
+}
+
+function processWorkbook(wb){
+  const log = [];
+  const ws = wb.Sheets['DB'];
+  if(!ws){
+    alert('Non trovo un foglio chiamato "DB" in questo file. Controlla il nome del foglio.');
+    return;
+  }
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const maxRow = range.e.r + 1; // 1-based
+  const maxCol = range.e.c + 1;
+
+  // ---- 1. Destinazioni (colonne D..I = 4..9), si ferma quando la colonna D (CodCM) è vuota ----
+  let lastDest = 1;
+  for(let r = 2; r <= maxRow; r++){
+    if(cellVal(ws, r, 4) === undefined){ lastDest = r - 1; break; }
+    lastDest = r;
+  }
+  const destinazioni = [];
+  for(let r = 2; r <= lastDest; r++){
+    const codCM = cellVal(ws, r, 4);
+    const destMerci = cellVal(ws, r, 7);
+    if(codCM === undefined || destMerci === undefined) continue;
+    destinazioni.push({
+      codCM: codCM,
+      societa: String(cellVal(ws, r, 5) ?? ''),
+      codDM: cellVal(ws, r, 6) ?? '',
+      destMerci: String(destMerci),
+      codPV: String(cellVal(ws, r, 8) ?? ''),
+      agente: String(cellVal(ws, r, 9) ?? '')
+    });
+  }
+
+  // ---- 2. Colonne codice-cliente per committente: intestazione (riga 1) tutta numerica, da
+  //         colonna 20 (T) in poi ----
+  const committenteCols = {};
+  for(let c = 20; c <= maxCol; c++){
+    const header = cellVal(ws, 1, c);
+    if(header !== undefined && /^\d+(\.\d+)?$/.test(String(header).trim())){
+      committenteCols[c] = String(header).trim();
+    }
+  }
+
+  // ---- 2b. Colonna etichette (intestazione che inizia per "Etich", es. "Etich. SF"), cercata su
+  //          tutta la riga 1. Valori: S = solo etichette standard, M = standard e mini,
+  //          C = solo cavi al metro. Cella vuota = articolo non abbinabile a nessuna etichetta. ----
+  let etichettaCol = null;
+  for(let c = 1; c <= maxCol; c++){
+    const header = cellVal(ws, 1, c);
+    if(header !== undefined && /^etich/i.test(String(header).trim())){
+      etichettaCol = c;
+      log.push(`Colonna etichette trovata: "${header}" (colonna ${XLSX.utils.encode_col(c-1)})`);
+      break;
+    }
+  }
+  if(!etichettaCol){
+    log.push('ATTENZIONE: colonna etichette non trovata (intestazione che inizia per "Etich"): le etichette non saranno abbinate agli articoli.');
+  }
+  const LABEL_MAP = { S: ['sfuso'], M: ['sfuso', 'mini_sfuso'], C: ['cavi'] };
+  const labelCount = { S: 0, M: 0, C: 0 };
+  const labelUnknown = [];
+  const labelCavoNoMeter = [];
+
+  // ---- 3. Catalogo: colonne O..S (15..19) = Materiale, Descrizione, Barcode, U.M., Imb. ----
+  // Robusto: salta (non si ferma) le righe senza codice, arriva fino all'ultima riga reale.
+  let lastCat = 1;
+  for(let r = 2; r <= maxRow; r++){
+    if(cellVal(ws, r, 15) !== undefined) lastCat = r;
+  }
+  const articoli = [];
+  let yellowCount = 0;
+  let fpCount = 0;
+  let skipped = [];
+  const separators = [];
+  for(let r = 2; r <= lastCat; r++){
+    const code = cellVal(ws, r, 15);
+    if(code === undefined){
+      const desc = cellVal(ws, r, 16);
+      if(desc !== undefined) skipped.push(`riga ${r}: "${desc}" — nessun codice, saltata`);
+      continue;
+    }
+    const desc = cellVal(ws, r, 16);
+    const barcode = cellVal(ws, r, 17);
+    const um = cellVal(ws, r, 18);
+    const imb = cellVal(ws, r, 19);
+    // riga separatrice/titolo (es. "ELIMINATI - FUORI PRODUZIONE"): ha un testo nella colonna Materiale
+    // ma nessuna descrizione, U.M., barcode o imballo -> non è un articolo
+    if(desc === undefined && um === undefined && barcode === undefined && imb === undefined){
+      separators.push(`riga ${r}: "${String(code).trim()}" — separatore senza descrizione, ignorata`);
+      continue;
+    }
+    // famiglia (colonna T "Gerarchia"): FP = fuori produzione
+    const famRaw = cellVal(ws, r, 20);
+    const isFP = famRaw !== undefined && String(famRaw).trim().toUpperCase() === 'FP';
+    if(isFP) fpCount++;
+    const isYellow = cellIsYellow(ws, r, 15);
+    if(isYellow) yellowCount++;
+
+    const codeIsNumeric = typeof code === 'number';
+    const codeVal = codeIsNumeric && Number.isInteger(code) ? code : code;
+
+    const cliByCM = {};
+    for(const c in committenteCols){
+      const v = cellVal(ws, r, parseInt(c, 10));
+      if(v !== undefined && String(v).trim() !== ''){
+        cliByCM[committenteCols[c]] = String(v).trim();
+      }
+    }
+
+    const entry = {
+      code: codeVal,
+      codeIsNumeric: !!codeIsNumeric,
+      desc: desc !== undefined ? String(desc) : '',
+      barcode: barcode !== undefined ? String(barcode).trim() : '',
+      um: um !== undefined ? String(um).trim() : '',
+      imb: imb !== undefined ? imb : null,
+      yellow: isYellow,
+      cliByCM: cliByCM
+    };
+    if(isFP) entry.fp = true; // fuori produzione: visibile ma non ordinabile
+
+    if(etichettaCol){
+      const labelRaw = cellVal(ws, r, etichettaCol);
+      if(labelRaw !== undefined && String(labelRaw).trim() !== ''){
+        const k = String(labelRaw).trim().toUpperCase();
+        if(LABEL_MAP[k]){
+          entry.labelTypes = LABEL_MAP[k];
+          labelCount[k]++;
+          if(k === 'C' && entry.um !== 'M') labelCavoNoMeter.push(String(code));
+        } else {
+          labelUnknown.push(`${code} (riga ${r}): valore "${labelRaw}"`);
+        }
+      }
+    }
+
+    articoli.push(entry);
+  }
+
+  // ---- Codici presenti sia come articolo attivo sia come FP (riga doppia nel DB): vince l'attivo ----
+  const activeCodes = new Set(articoli.filter(a => !a.fp).map(a => String(a.code).trim().toUpperCase()));
+  const dupFp = [];
+  for(let i = articoli.length - 1; i >= 0; i--){
+    const a = articoli[i];
+    if(a.fp && activeCodes.has(String(a.code).trim().toUpperCase())){
+      dupFp.push(String(a.code)); articoli.splice(i, 1); fpCount--;
+    }
+  }
+  dupFp.reverse();
+
+  // ---- Articoli Selex (private label): codice che finisce per D e il cui codice base esiste ----
+  const allCodes = new Map(articoli.map(a => [String(a.code).trim().toUpperCase(), String(a.code).trim()]));
+  const selexWarn = [];
+  let selexCount = 0;
+  let selexUncoded = 0;
+  const selexCMs = new Set();
+  articoli.forEach(a => {
+    const c = String(a.code).trim();
+    if(/D$/.test(c) && c.length > 2){
+      const base = allCodes.get(c.slice(0, -1).toUpperCase());
+      if(base){
+        a.selex = true; a.selexBase = base; selexCount++;
+        const ean = String(a.barcode || '');
+        if(!ean.startsWith('80031')) selexWarn.push(`${c}: EAN ${ean || '(vuoto)'} non inizia per 80031 (atteso per i private label Selex)`);
+        const cm = Object.keys(a.cliByCM || {}).filter(k => a.cliByCM[k]);
+        if(!cm.length) selexUncoded++;   // visibile ai clienti Selex come «NON CODIFICATO»
+        cm.forEach(k => selexCMs.add(k));
+      } else if(String(a.barcode || '').startsWith('80031')){
+        selexWarn.push(`${c}: EAN 80031 ma il codice base ${c.slice(0, -1)} non esiste nel DB — non riconosciuto come Selex`);
+      }
+    } else if(String(a.barcode || '').startsWith('80031')){
+      selexWarn.push(`${c}: EAN 80031 ma il codice non finisce per D — non riconosciuto come Selex`);
+    }
+  });
+
+  // ---- Esito ----
+  document.getElementById('statArticoli').textContent = articoli.length - fpCount - selexCount; // articoli standard ordinabili (FP e Selex sono contati a parte)
+  document.getElementById('statDestinazioni').textContent = destinazioni.length;
+  document.getElementById('statCommittenti').textContent = Object.keys(committenteCols).length;
+
+  const warnBox = document.getElementById('warnBox');
+  const okBox = document.getElementById('okBox');
+  warnBox.innerHTML = '';
+  okBox.innerHTML = '';
+
+  log.push(`Articoli ordinabili: ${articoli.length - fpCount} (di cui Selex con D: ${selexCount}) · Fuori produzione (famiglia FP): ${fpCount} · Totale righe nel catalogo: ${articoli.length}`);
+  if(selexCount) log.push(`Clienti Selex (con codici cliente sugli articoli D): ${Array.from(selexCMs).join(', ')} · Articoli D senza codice cliente (non codificati): ${selexUncoded}`);
+  if(selexWarn.length){
+    warnBox.innerHTML += `<div class="warn-box">⚠ Articoli Selex da controllare (${selexWarn.length}): ${selexWarn.slice(0, 6).join(' · ')}${selexWarn.length > 6 ? ' …' : ''}</div>`;
+    selexWarn.forEach(w => log.push('Selex: ' + w));
+  }
+  if(separators.length) log.push(...separators);
+  if(dupFp.length){
+    warnBox.innerHTML += `<div class="warn-box">⚠ ${dupFp.length} codice/i compaiono sia come articolo attivo sia come FP: ${dupFp.join(', ')}. Li considero ATTIVI (riga FP ignorata): controlla nel DB se la riga FP è un errore.</div>`;
+    log.push(`Codici presenti anche come FP, considerati attivi: ${dupFp.join(', ')}`);
+  }
+  if(fpCount){
+    okBox.innerHTML += `<div class="ok-box">✓ ${fpCount} articoli fuori produzione (famiglia FP) inclusi nel catalogo come non ordinabili.</div>`;
+  } else {
+    warnBox.innerHTML += `<div class="warn-box">ℹ Nessun articolo con famiglia FP trovato nella colonna Gerarchia.</div>`;
+  }
+  if(skipped.length){
+    warnBox.innerHTML = `<div class="warn-box">⚠ ${skipped.length} riga/e senza codice articolo, saltate (vedi dettagli sotto).</div>`;
+    log.push(...skipped);
+  }
+  warnBox.innerHTML += `<div class="warn-box">ℹ La rilevazione del colore giallo ("Art. Particolare") è best-effort e non sempre affidabile in questo strumento — ${yellowCount} articoli rilevati come gialli. Se il numero ti sembra troppo basso rispetto a quelli che hai colorato, mandami il file e li sistemo io.</div>`;
+
+  if(etichettaCol){
+    log.push(`Etichette: S = ${labelCount.S} · M = ${labelCount.M} · C = ${labelCount.C} (articoli senza valore: ${articoli.length - labelCount.S - labelCount.M - labelCount.C - labelUnknown.length})`);
+    if(labelUnknown.length){
+      warnBox.innerHTML += `<div class="warn-box">⚠ ${labelUnknown.length} valore/i nella colonna etichette diversi da S, M, C: ignorati (vedi dettagli sotto).</div>`;
+      log.push(...labelUnknown);
+    }
+    if(labelCavoNoMeter.length){
+      warnBox.innerHTML += `<div class="warn-box">ℹ ${labelCavoNoMeter.length} articoli con C ma unità di misura diversa da M: ${labelCavoNoMeter.slice(0,8).join(', ')}${labelCavoNoMeter.length > 8 ? '…' : ''}</div>`;
+    }
+  }
+
+  if(!skipped.length){
+    okBox.innerHTML += '<div class="ok-box">✓ Nessuna riga saltata: tutti gli articoli con un codice sono stati letti.</div>';
+  }
+
+  if(log.length){
+    document.getElementById('logWrap').classList.remove('hidden');
+    document.getElementById('logBox').innerHTML = log.map(l => `<div>${l}</div>`).join('');
+  }
+
+  const catalogo = {
+    versione: '1.4',
+    generato: new Date().toISOString().slice(0,10),
+    articoli: articoli,
+    destinazioni: destinazioni
+  };
+  const json = JSON.stringify(catalogo);
+  generatedBlob = new Blob([json], { type:'application/json' });
+
+  resultCard.classList.remove('hidden');
+  downloadBtn.disabled = false;
+}
+
+downloadBtn.addEventListener('click', async () => {
+  if(!generatedBlob) return;
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = '⏳ Preparazione…';
+  try{
+    const downloads = await claude.use('downloads');
+    if(!downloads){
+      // fuori da claude.ai (es. file aperto direttamente): uso il download normale del browser
+      const url = URL.createObjectURL(generatedBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = generatedFilename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = '⬇️ Scarica catalogo.json';
+      return;
+    }
+    const result = await downloads.save({ filename: generatedFilename, data: generatedBlob });
+    downloadBtn.textContent = result.status === 'saved' ? '✓ Salvato' : '✓ Inviato';
+    setTimeout(() => { downloadBtn.disabled = false; downloadBtn.textContent = '⬇️ Scarica catalogo.json'; }, 2000);
+  } catch(err){
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = '⬇️ Scarica catalogo.json';
+    if(err && err.code === 'declined') return; // l'utente ha annullato, nessun avviso
+    alert('Non sono riuscito a salvare il file (' + (err && err.code || 'errore') + '). Riprova.');
+  }
+});
+</script>
+
+</body>
+</html>
