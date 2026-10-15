@@ -1110,7 +1110,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "25.8";
+const APP_VERSION = "25.9";
 const APP_VERSION_DATE = "13.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1373,9 +1373,10 @@ DB.forEach(e => {
   Object.keys(cli).forEach(cm => COMMITTENTI_WITH_CODIFICA.add(cm));
 });
 // ---- v25.6: articoli private label Selex (codice con D) ----
-// Regole: un articolo D si vede e si ordina solo se il cliente corrente (committente) ha il codice cliente
-// su quella riga. I clienti Selex (quelli con codici sugli articoli D) non vedono la versione senza D
-// quando esiste il gemello D: se scrivono o scansionano il codice base, si apre il gemello D.
+// Regole: gli articoli D si vedono e si ordinano solo per i clienti Selex, cioè i committenti che hanno codici
+// cliente su almeno un articolo D (oggi GMF). Se per quel cliente un D non ha ancora il codice, si ordina lo
+// stesso e compare «NON CODIFICATO». I clienti Selex non vedono la versione senza D quando esiste il gemello D;
+// scrivendo il codice base (433) o già la D (433D) si inserisce sempre la variante D.
 // Gli articoli senza gemello D restano visibili a tutti.
 const SELEX_D_BY_BASE = {};          // codice base (maiuscolo) -> articolo D
 const SELEX_BASE_BY_CODE = {};       // codice D -> codice base (per la foto)
@@ -1393,7 +1394,7 @@ function currentCM(){ return selectedRow ? String(selectedRow.codCM) : null; }
 function isSelexClient(cm){ return !!cm && SELEX_CMS.has(String(cm)); }
 function visibleForClient(e, cm){
   if(!e) return false;
-  if(e.selex) return !!(cm && e.cliByCM && e.cliByCM[String(cm)]);
+  if(e.selex) return isSelexClient(cm);
   const twin = SELEX_D_BY_BASE[String(e.code).toUpperCase()];
   if(twin && isSelexClient(cm)) return false;
   return true;
