@@ -807,6 +807,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <label for="note">Note Ordine</label>
           <input id="note" type="text" placeholder="es. PP0334.1: 1 bobina + etichetta">
         </div>
+        <div id="noteAutoHint" class="hint" style="display:none; padding:0 0 4px 74px;"></div>
         <input id="notaPersonale" type="hidden" value="">
       </div>
     </div>
@@ -1113,7 +1114,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "26.9";
+const APP_VERSION = "27.0";
 const APP_VERSION_DATE = "15.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -2569,15 +2570,20 @@ function fondoGancioNoteSegment(){
   rows.forEach(r => { if(r.match && String(r.match.code).trim().toUpperCase() === 'FONDO GANCIO') qty += parseFloat(r.qtyFinal) || 0; });
   return qty > 0 ? 'INS nr. ' + qty + ' Schede Fondo Gancio' : '';
 }
-function syncAutoOrderNote(labelInfosPresent){
-  const noteField = document.getElementById('note');
-  const manual = (noteField.value || '').split(' - ').map(x => x.trim()).filter(x => x && !isAutoNoteSegment(x));
+// v27.0: il campo «Note Ordine» dell'app resta LIBERO: contiene solo ciò che scrive l'agente. Le voci automatiche su
+// etichette e schede fondo gancio non vengono scritte lì: si aggiungono alla nota manuale solo nella cella E5 del file Excel
+// (e si vedono nel riepilogo prima dell'invio). Vecchie bozze/storico che avevano già le voci nel campo vengono ripulite.
+function manualNoteSegments(){
+  return (document.getElementById('note').value || '').split(' - ').map(x => x.trim()).filter(x => x && !isAutoNoteSegment(x));
+}
+function autoNoteParts(){
   const notaPers = document.getElementById('notaPersonale').value || '';
+  const labelInfos = LABEL_NOTE_INFO.filter(info => notaPers.includes(info.label));
   const fondo = fondoGancioNoteSegment();
   let variants = [];
-  if(labelInfosPresent && labelInfosPresent.length){
+  if(labelInfos.length){
     const det = [], cnt = [];
-    labelInfosPresent.forEach(info => {
+    labelInfos.forEach(info => {
       const nm = LABEL_SHORT_NAME[info.key] || info.label;
       const codes = formatCodesCompact(extractNoteSegmentCodes(info.label, notaPers));
       const n = codes ? codes.split(',').length : 0;
@@ -2588,20 +2594,42 @@ function syncAutoOrderNote(labelInfosPresent){
                 'INS etichette: ' + cnt.join('; ') + '; vedi mail',
                 'INS etichette: vedi mail'];
   }
+  return { variants, fondo, hasLabels: labelInfos.length > 0 };
+}
+// Testo che va nella cella E5 del file Excel: nota manuale + etichette + schede fondo gancio (solo quelle presenti)
+function composeOrderNote(){
+  const manual = manualNoteSegments();
+  const { variants, fondo } = autoNoteParts();
   const compose = L => manual.concat(L ? [L] : [], fondo ? [fondo] : []).join(' - ');
   let chosen = variants.length ? variants[variants.length - 1] : '';
   for(const v of variants){ if(compose(v).length <= NOTE_MAX_SAP){ chosen = v; break; } }
-  const newText = compose(chosen);
-  if(newText !== noteField.value){
-    noteField.value = newText;
-    noteField.dispatchEvent(new Event('input', {bubbles:true}));
+  return compose(chosen);
+}
+function stripAutoSegmentsFromNoteField(){
+  const f = document.getElementById('note');
+  const man = manualNoteSegments().join(' - ');
+  if(man !== (f.value || '').trim()){
+    f.value = man;
+    f.dispatchEvent(new Event('input', {bubbles:true}));
   }
+}
+function updateNoteAutoHint(){
+  const el = document.getElementById('noteAutoHint');
+  if(!el) return;
+  const { hasLabels, fondo } = autoNoteParts();
+  const parts = [];
+  if(hasLabels) parts.push('etichette');
+  if(fondo) parts.push('schede fondo gancio');
+  if(parts.length && rows.length){
+    el.textContent = 'Nel file Excel si aggiunge in automatico: ' + parts.join(' e ') + '.';
+    el.style.display = 'block';
+  } else el.style.display = 'none';
 }
 
 function handleFondoGancioNote(justAddedCode, qtyRaw){
   if(String(justAddedCode).trim().toUpperCase() !== 'FONDO GANCIO') return;
   const seg = fondoGancioNoteSegment();
-  if(seg) showToast('Nota ordine aggiornata: "' + seg + '".');
+  if(seg) showToast('Nel file Excel la nota dirà: \"' + seg + '\".');
 }
 
 // Estrae in una funzione riutilizzabile la logica "chiedi etichette e aggiorna la Nota
@@ -3172,7 +3200,8 @@ function renderRows(){
   container.innerHTML = "";
   const notaPersonaleVal = document.getElementById('notaPersonale').value || '';
   const labelInfosPresent = LABEL_NOTE_INFO.filter(info => notaPersonaleVal.includes(info.label));
-  syncAutoOrderNote(labelInfosPresent);
+  stripAutoSegmentsFromNoteField();
+  updateNoteAutoHint();
   document.getElementById('btnClearPositions').style.display = (rows.length > 0 || labelInfosPresent.length > 0) ? '' : 'none';
   saveDraft();
   if(rows.length===0 && labelInfosPresent.length===0){
@@ -3938,9 +3967,10 @@ function readHeaderFormData(){
   const dest = document.getElementById('inDestinazione').value;
   const dOrdISO = document.getElementById('dataOrdine').value;
   const dConsISO = document.getElementById('dataConsegna').value;
-  const note = document.getElementById('note').value.trim();
+  const note = manualNoteSegments().join(' - ');          // solo ciò che scrive l'agente
+  const noteXls = composeOrderNote();                      // nota manuale + voci automatiche (cella E5)
   const notaPersonale = document.getElementById('notaPersonale').value.trim();
-  return { agente, committente, numOrd, dest, dOrdISO, dConsISO, note, notaPersonale };
+  return { agente, committente, numOrd, dest, dOrdISO, dConsISO, note, noteXls, notaPersonale };
 }
 
 async function generateFile(){
@@ -3952,7 +3982,7 @@ async function generateFile(){
     showToast("Troppi articoli per questo template (" + (LAST_ROW-FIRST_ROW+1) + " righe max).");
     return null;
   }
-  const { agente, committente, numOrd, dest, dOrdISO, dConsISO, note } = readHeaderFormData();
+  const { agente, committente, numOrd, dest, dOrdISO, dConsISO, noteXls } = readHeaderFormData();
   if(!agente || !committente || !dest || !numOrd || !dOrdISO || !dConsISO){
     showToast("Agente, Committente, Destinazione, N. Ordine, Data Ordine e Data Consegna Richiesta sono tutti obbligatori.");
     return null;
@@ -3992,7 +4022,7 @@ async function generateFile(){
     writeCellValue(sheetDoc, 'E4', 'n', excelSerialFromISO(dConsISO));
   }
   // E5: Note AC
-  if(note){ writeCellValue(sheetDoc, 'E5', 's', note); }
+  if(noteXls){ writeCellValue(sheetDoc, 'E5', 's', noteXls); }
 
   const yellowCache = {};
   rows.forEach((r, i) => {
@@ -4076,7 +4106,7 @@ function computeLabelChecks(){
 }
 
 function openReviewOverlay(){
-  const { agente, committente, numOrd, dest, dOrdISO, dConsISO, note, notaPersonale } = readHeaderFormData();
+  const { agente, committente, numOrd, dest, dOrdISO, dConsISO, note, noteXls, notaPersonale } = readHeaderFormData();
   const rowsHtml = [
     ['Agente', agente || '—'],
     ['Committente', committente || '—'],
@@ -4085,7 +4115,8 @@ function openReviewOverlay(){
     ['Data Ordine', formatDateIT(dOrdISO)],
     ['Data Consegna', formatDateIT(dConsISO)],
   ];
-  if(note) rowsHtml.push(['Note', note]);
+  { const shownNote = rows.length ? noteXls : note;   // senza righe non si genera l'Excel: conta solo la nota scritta a mano
+    if(shownNote) rowsHtml.push([rows.length ? 'Note (nel file)' : 'Note', shownNote]); }
   document.getElementById('rvHeaderSection').innerHTML = rowsHtml.map(([label,val])=>
     `<div class="review-row"><span>${label}</span><b>${val}</b></div>`
   ).join('');
@@ -4179,9 +4210,9 @@ document.getElementById('btnSend').addEventListener('click', ()=>{
     showToast("Completa prima tutti i dati della testata (Agente, Committente, Destinazione, N. Ordine, Data Ordine e Data Consegna Richiesta).");
     return;
   }
-  const noteLen = (document.getElementById('note').value || '').trim().length;
+  const noteLen = (readHeaderFormData().noteXls || '').length;
   if(noteLen > NOTE_MAX_SAP){
-    showToast('La Nota Ordine è di ' + noteLen + ' caratteri: SAP ne accetta al massimo ' + NOTE_MAX_SAP + '. Accorciala.');
+    showToast('La Nota Ordine (con le voci automatiche) è di ' + noteLen + ' caratteri: SAP ne accetta al massimo ' + NOTE_MAX_SAP + '. Accorciala.');
     return;
   }
   const dup = findDuplicateOrder();
