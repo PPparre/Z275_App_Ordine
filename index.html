@@ -1518,7 +1518,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "27.4";
+const APP_VERSION = "27.5";
 const APP_VERSION_DATE = "16.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -2935,7 +2935,7 @@ function askSeparatorConfirm(separatorCode){
 
 
 // FONDO GANCIO: nessun popup, si annota da sola la quantità richiesta di schede nella Nota
-// Ordine — "INS nr. Q Schede Fondo Gancio" — senza chiedere nulla all'agente.
+// Ordine — "Schede Fondo Gancio Q pz" nella nota del file — senza chiedere nulla all'agente.
 // Nota generica in Note Ordine (Note AC, il campo che finisce nel file xlsx) quando ci sono
 // richieste di etichette: non elenca mai i codici lì (quelli restano solo nel testo della mail),
 // solo un avviso breve che dice al magazzino di controllare la mail — una volta sola anche se i
@@ -2944,11 +2944,11 @@ function askSeparatorConfirm(separatorCode){
 // v26.3: la Nota Ordine (che finisce nella cella E5 «Note AC» del file Excel e quindi nell'ordine SAP) contiene,
 // dopo l'eventuale nota scritta a mano, anche le informazioni su ETICHETTE e SCHEDE FONDO GANCIO, così non restano
 // solo nel testo della mail. Si ricalcolano da sole ad ogni modifica dell'ordine (righe, quantità, richieste etichette):
-//   [nota manuale] - INS etichette: standard: 27.10, 2x70X; mini: 31X; cavi: 334 - INS nr. N Schede Fondo Gancio
+//   [nota manuale] + Inserire Etichette Sfuso 27.10 70X (2 pz) + Cavi 334 + Schede Fondo Gancio 1.000 pz
 // Se c'è solo una delle due si scrive solo quella. In SAP il campo note salva al massimo 500 caratteri (prova del
 // 15.10.2026 con una nota di 1000 caratteri): se il testo con i codici è più lungo si passa a una forma più breve.
 const NOTE_MAX_SAP = 500;   // limite misurato in SAP con una nota di prova da 1000 caratteri: ne salva 500
-const LABEL_SHORT_NAME = { sfuso:'standard', mini_sfuso:'mini', cavi:'cavi' };
+const LABEL_SHORT_NAME = { sfuso:'Sfuso', mini_sfuso:'Mini', cavi:'Cavi' };
 function isAutoNoteSegment(seg){
   // riconosce sia il formato attuale («INS …») sia quelli delle versioni precedenti («Inserire …»), per ripulire bozze e storico
   return /^(Inserire|INS) etichette/i.test(seg) || /^(inserire|INS) nr\.\s*[\d.,]+\s*Schede Fondo Gancio$/i.test(seg);
@@ -2964,19 +2964,24 @@ function compactLabelCode(code){
   if(/^PP/i.test(c))   return c.slice(2);
   return c;
 }
+function fmtItNum(n){
+  const r = Math.round(Number(n) * 100) / 100, neg = r < 0, a = Math.abs(r);
+  const [i, d] = String(a).split('.');
+  return (neg ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (d ? ',' + d : '');
+}
 function formatCodesCompact(codesStr){
   if(!codesStr) return '';
   return codesStr.split(',').map(tok => {
     const { code, qty } = parseCodeToken(tok);
     if(!code) return '';
     const c = compactLabelCode(code);
-    return qty > 1 ? qty + 'x' + c : c;
-  }).filter(Boolean).join(', ');
+    return qty > 1 ? c + ' (' + fmtItNum(qty) + ' pz)' : c;
+  }).filter(Boolean).join(' ');
 }
 function fondoGancioNoteSegment(){
   let qty = 0;
   rows.forEach(r => { if(r.match && String(r.match.code).trim().toUpperCase() === 'FONDO GANCIO') qty += parseFloat(r.qtyFinal) || 0; });
-  return qty > 0 ? 'INS nr. ' + qty + ' Schede Fondo Gancio' : '';
+  return qty > 0 ? 'Schede Fondo Gancio ' + fmtItNum(qty) + ' pz' : '';
 }
 // v27.0: il campo «Note Ordine» dell'app resta LIBERO: contiene solo ciò che scrive l'agente. Le voci automatiche su
 // etichette e schede fondo gancio non vengono scritte lì: si aggiungono alla nota manuale solo nella cella E5 del file Excel
@@ -2993,22 +2998,28 @@ function autoNoteParts(){
     const det = [], cnt = [];
     labelInfos.forEach(info => {
       const nm = LABEL_SHORT_NAME[info.key] || info.label;
-      const codes = formatCodesCompact(extractNoteSegmentCodes(info.label, notaPers));
-      const n = codes ? codes.split(',').length : 0;
-      det.push(nm + ': ' + (codes || 'da definire'));
-      cnt.push(nm + (n ? ' ' + n + (n === 1 ? ' codice' : ' codici') : ': da definire'));
+      const raw = extractNoteSegmentCodes(info.label, notaPers);
+      const codes = formatCodesCompact(raw);
+      const n = raw ? raw.split(',').length : 0;
+      det.push(nm + ' ' + (codes || 'da definire'));
+      cnt.push(nm + ' ' + (n ? n + (n === 1 ? ' codice' : ' codici') : 'da definire'));
     });
-    variants = ['INS etichette: ' + det.join('; '),
-                'INS etichette: ' + cnt.join('; ') + '; vedi mail',
-                'INS etichette: vedi mail'];
+    // v27.5: «Etichette Sfuso 433X 452X 2516 (2 pz) + Cavi 337»; la parola «Inserire» si scrive una volta sola (vedi composeOrderNote)
+    variants = ['Etichette ' + det.join(' + '),
+                'Etichette ' + cnt.join(' + ') + ' (vedi mail)',
+                'Etichette (vedi mail)'];
   }
   return { variants, fondo, hasLabels: labelInfos.length > 0 };
 }
 // Testo che va nella cella E5 del file Excel: nota manuale + etichette + schede fondo gancio (solo quelle presenti)
 function composeOrderNote(){
-  const manual = manualNoteSegments();
+  const manual = manualNoteSegments().join(' - ');          // la nota dell'agente, com'è
   const { variants, fondo } = autoNoteParts();
-  const compose = L => manual.concat(L ? [L] : [], fondo ? [fondo] : []).join(' - ');
+  const compose = L => {
+    const parts = [L, fondo].filter(Boolean);
+    const auto = parts.length ? 'Inserire ' + parts.join(' + ') : '';
+    return [manual, auto].filter(Boolean).join(' + ');
+  };
   let chosen = variants.length ? variants[variants.length - 1] : '';
   for(const v of variants){ if(compose(v).length <= NOTE_MAX_SAP){ chosen = v; break; } }
   return compose(chosen);
