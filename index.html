@@ -261,6 +261,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* v25.3: articolo fuori produzione (FP) */
   .qty-prompt-img{ position:relative; }
   .qty-prompt-img.is-fp img{ filter:grayscale(.8); opacity:.8; }
+  /* v27.6: l'elenco a tendina dei campi (aperto da PC) ha il fondo bianco: le voci devono avere testo scuro
+     (nel campo chiuso il testo resta bianco su fondo scuro) */
+  select option{ color:#111827 !important; background:#ffffff !important; }
+  select option:disabled{ color:#6b7280 !important; }
   .fp-mini{display:inline-block; background:var(--brand-red); color:#fff; font-size:9.5px; font-weight:800; border-radius:8px; padding:0 5px; margin-left:6px; vertical-align:middle; line-height:15px;}
   .fp-stamp{
     position:absolute; top:0; right:-48px; width:clamp(42px, calc(var(--qimg,140px) * .52), 80px); height:clamp(42px, calc(var(--qimg,140px) * .52), 80px);
@@ -806,7 +810,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
         <div class="sap-row" style="grid-template-columns:68px 1fr;">
           <label for="note">Note Ordine</label>
-          <input id="note" type="text" placeholder="es. PP0334.1: 1 bobina + etichetta">
+          <input id="note" type="text">
         </div>
         <div id="noteAutoHint" class="hint" style="display:none; padding:0 0 4px 74px;"></div>
         <input id="notaPersonale" type="hidden" value="">
@@ -1518,7 +1522,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "27.5";
+const APP_VERSION = "27.7";
 const APP_VERSION_DATE = "16.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -2978,6 +2982,15 @@ function formatCodesCompact(codesStr){
     return qty > 1 ? c + ' (' + fmtItNum(qty) + ' pz)' : c;
   }).filter(Boolean).join(' ');
 }
+// v27.7: le schede fondo gancio si comportano come le etichette: restano nell'elenco posizioni, nel riepilogo e nella nota
+// del file, ma NON sono mai una riga dell'ordine, né nell'Excel né nel PDF. exportRows() = righe che escono nei file.
+function isFondoGancioRow(r){
+  const c = r && (r.match ? r.match.code : r.code);
+  return String(c == null ? '' : c).trim().toUpperCase() === 'FONDO GANCIO';
+}
+function exportRows(){ return rows.filter(r => !isFondoGancioRow(r)); }
+function hasFondoGancioRows(){ return rows.some(isFondoGancioRow); }
+function fondoGancioQty(){ let q = 0; rows.forEach(r => { if(isFondoGancioRow(r)) q += parseFloat(r.qtyFinal) || 0; }); return q; }
 function fondoGancioNoteSegment(){
   let qty = 0;
   rows.forEach(r => { if(r.match && String(r.match.code).trim().toUpperCase() === 'FONDO GANCIO') qty += parseFloat(r.qtyFinal) || 0; });
@@ -3040,7 +3053,7 @@ function updateNoteAutoHint(){
   if(hasLabels) parts.push('etichette');
   if(fondo) parts.push('schede fondo gancio');
   if(parts.length && rows.length){
-    el.textContent = 'Nel file Excel si aggiunge in automatico: ' + parts.join(' e ') + '.';
+    el.textContent = 'Nel file Excel e nel PDF vanno solo come nota, non come righe: ' + parts.join(' e ') + '.';
     el.style.display = 'block';
   } else el.style.display = 'none';
 }
@@ -4393,11 +4406,12 @@ function readHeaderFormData(){
 }
 
 async function generateFile(){
-  if(rows.length === 0){
+  const xr = exportRows();   // senza le schede fondo gancio (vanno solo nella nota)
+  if(xr.length === 0){
     showToast("Aggiungi almeno un articolo prima di generare il file.");
     return null;
   }
-  if(rows.length > (LAST_ROW-FIRST_ROW+1)){
+  if(xr.length > (LAST_ROW-FIRST_ROW+1)){
     showToast("Troppi articoli per questo template (" + (LAST_ROW-FIRST_ROW+1) + " righe max).");
     return null;
   }
@@ -4444,7 +4458,7 @@ async function generateFile(){
   if(noteXls){ writeCellValue(sheetDoc, 'E5', 's', noteXls); }
 
   const yellowCache = {};
-  rows.forEach((r, i) => {
+  xr.forEach((r, i) => {
     const rIdx = FIRST_ROW + i;
     const codeVal = r.match ? r.match.code : r.code;
     const codeIsNum = r.match ? !!r.match.codeIsNumeric : false;
@@ -4534,8 +4548,8 @@ function openReviewOverlay(){
     ['Data Ordine', formatDateIT(dOrdISO)],
     ['Data Consegna', formatDateIT(dConsISO)],
   ];
-  { const shownNote = rows.length ? noteXls : note;   // senza righe non si genera l'Excel: conta solo la nota scritta a mano
-    if(shownNote) rowsHtml.push([rows.length ? 'Note (nel file)' : 'Note', shownNote]); }
+  { const shownNote = exportRows().length ? noteXls : note;   // senza righe non si genera l'Excel: conta solo la nota scritta a mano
+    if(shownNote) rowsHtml.push([exportRows().length ? 'Note (nel file)' : 'Note', shownNote]); }
   document.getElementById('rvHeaderSection').innerHTML = rowsHtml.map(([label,val])=>
     `<div class="review-row"><span>${label}</span><b>${val}</b></div>`
   ).join('');
@@ -4609,17 +4623,19 @@ document.getElementById('btnSend').addEventListener('click', ()=>{
   const notaPersonaleValCheck = document.getElementById('notaPersonale').value || '';
   const hasLabelsCheck = LABEL_NOTE_INFO.some(info => notaPersonaleValCheck.includes(info.label));
 
-  if(rows.length === 0 && !hasLabelsCheck){
+  const noRealRows = exportRows().length === 0;      // schede fondo gancio escluse
+  const hasFgCheck = hasFondoGancioRows();
+  if(noRealRows && !hasLabelsCheck && !hasFgCheck){
     showToast("Aggiungi almeno un articolo prima di generare il file.");
     return;
   }
   // Ordine di sole etichette (nessuna posizione, nemmeno minibox/scatole): il gestionale non
   // legge un file xlsx senza righe, quindi non ha senso crearlo — basta una mail di richiesta,
   // per cui servono solo Committente e Destinazione (non serve compilare tutta la testata).
-  if(rows.length === 0 && hasLabelsCheck){
+  if(noRealRows && (hasLabelsCheck || hasFgCheck)){
     const { committente, dest } = readHeaderFormData();
     if(!committente || !dest){
-      showToast("Completa almeno Committente e Destinazione Merci prima di inviare la richiesta etichette.");
+      showToast("Completa almeno Committente e Destinazione Merci prima di inviare la richiesta" + (hasLabelsCheck ? " etichette" : " schede fondo gancio") + ".");
       return;
     }
     openReviewOverlay();
@@ -4648,7 +4664,7 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
  try{
   const notaPersonaleValNow = document.getElementById('notaPersonale').value || '';
   const labelInfosPresentNow = LABEL_NOTE_INFO.filter(info => notaPersonaleValNow.includes(info.label));
-  const isLabelsOnlyOrder = rows.length === 0 && labelInfosPresentNow.length > 0;
+  const isLabelsOnlyOrder = exportRows().length === 0 && (labelInfosPresentNow.length > 0 || hasFondoGancioRows());
 
   // Ordine di sole etichette: niente file xlsx (il gestionale non lo leggerebbe comunque, dato
   // che non ci sono righe articolo) — solo una mail di richiesta, con oggetto dedicato e il
@@ -4659,12 +4675,15 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
     const dOrdISO = document.getElementById('dataOrdine').value || todayISO();
     const [y,m,d] = dOrdISO.split('-');
     const dataStr = `${d}.${m}.${y.slice(2)}`;
-    const mailSubjectText = `${dest} - Richiesta Etichette del ${dataStr}`;
-    const mailBodyText = buildLabelsMailSection(labelInfosPresentNow, notaPersonaleValNow);
+    const hasLab = labelInfosPresentNow.length > 0, hasFg = hasFondoGancioRows();
+    const what = hasLab && hasFg ? 'Etichette e Schede Fondo Gancio' : (hasFg ? 'Schede Fondo Gancio' : 'Etichette');
+    const mailSubjectText = `${dest} - Richiesta ${what} del ${dataStr}`;
+    const fgText = hasFg ? 'SCHEDE FONDO GANCIO DA INSERIRE:\n\n- Schede Fondo Gancio: ' + fmtItNum(fondoGancioQty()) + ' pz' : '';
+    const mailBodyText = [buildLabelsMailSection(labelInfosPresentNow, notaPersonaleValNow), fgText].filter(Boolean).join('\n\n');
     pendingMailtoUrl = 'mailto:ordini@polypool.it?subject=' + encodeURIComponent(mailSubjectText) + '&body=' + encodeURIComponent(mailBodyText);
     setFileGeneratedState(true);
     clearDraft();
-    showToast("Richiesta etichette pronta. Tocca 'Apri Mail' per inviarla.");
+    showToast("Richiesta pronta. Tocca 'Apri Mail' per inviarla.");
     return;
   }
 
@@ -4867,7 +4886,8 @@ function createConfermaPdf(d){
 
 // Dati per il PDF: gli stessi righe/ordine/note che vanno nell'Excel (stesse verifiche della testata)
 function collectConfermaData(){
-  if(rows.length === 0){ showToast('Aggiungi almeno un articolo prima di creare la conferma ordine.'); return null; }
+  const xr = exportRows();   // senza le schede fondo gancio (restano solo nella nota)
+  if(xr.length === 0){ showToast('Aggiungi almeno un articolo prima di creare la conferma ordine.'); return null; }
   const { agente, committente, numOrd, dest, dOrdISO, dConsISO, noteXls } = readHeaderFormData();
   if(!agente || !committente || !dest || !numOrd || !dOrdISO || !dConsISO){
     showToast('Agente, Committente, Destinazione, N. Ordine, Data Ordine e Data Consegna Richiesta sono tutti obbligatori.'); return null;
@@ -4885,7 +4905,7 @@ function collectConfermaData(){
     destinatario: { cod: String(sr.codDM != null ? sr.codDM : ''), nome: String(sr.societa || committente).trim(), dest: String(sr.destMerci || dest).trim(),
                     pv: String(sr.codPV || '').replace(/^PV/i, '') },
     note: noteXls || '',
-    righe: rows.map(r => ({
+    righe: xr.map(r => ({
       code: String(r.match ? r.match.code : r.code), desc: (r.match && r.match.desc) ? r.match.desc : '',
       cli: r.cli || '', ean: (r.match && r.match.barcode) ? String(r.match.barcode) : '', um: (r.match && r.match.um) ? r.match.um : '', qty: r.qtyFinal
     })),
