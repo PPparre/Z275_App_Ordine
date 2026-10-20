@@ -1522,8 +1522,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "27.8";
-const APP_VERSION_DATE = "19.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
+const APP_VERSION = "27.9";
+const APP_VERSION_DATE = "20.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
 const DEFAULT_LEAD_BUSINESS_DAYS = 4;
@@ -2948,7 +2948,7 @@ function askSeparatorConfirm(separatorCode){
 // v26.3: la Nota Ordine (che finisce nella cella E5 «Note AC» del file Excel e quindi nell'ordine SAP) contiene,
 // dopo l'eventuale nota scritta a mano, anche le informazioni su ETICHETTE e SCHEDE FONDO GANCIO, così non restano
 // solo nel testo della mail. Si ricalcolano da sole ad ogni modifica dell'ordine (righe, quantità, richieste etichette):
-//   [nota manuale] + Inserire Etichette Sfuso 27.10 70X (2 pz) + Cavi 334 + Schede Fondo Gancio 1.000 pz
+//   [nota manuale] + Inserire Etichette Sfuso 27.10 - 2 pz 70X + Cavi 334 + Schede Fondo Gancio 1.000 pz
 // Se c'è solo una delle due si scrive solo quella. In SAP il campo note salva al massimo 500 caratteri (prova del
 // 15.10.2026 con una nota di 1000 caratteri): se il testo con i codici è più lungo si passa a una forma più breve.
 const NOTE_MAX_SAP = 500;   // limite misurato in SAP con una nota di prova da 1000 caratteri: ne salva 500
@@ -2979,8 +2979,10 @@ function formatCodesCompact(codesStr){
     const { code, qty } = parseCodeToken(tok);
     if(!code) return '';
     const c = compactLabelCode(code);
-    return qty > 1 ? c + ' (' + fmtItNum(qty) + ' pz)' : c;
-  }).filter(Boolean).join(' ');
+    // v27.9: un trattino separa ogni codice e la quantità sta DAVANTI al codice a cui si riferisce («398 - 2 pz 399 - 403X»):
+    // così non c'è dubbio su quale codice riguarda «2 pz»
+    return qty > 1 ? fmtItNum(qty) + ' pz ' + c : c;
+  }).filter(Boolean).join(' - ');
 }
 // v27.7: le schede fondo gancio si comportano come le etichette: restano nell'elenco posizioni, nel riepilogo e nella nota
 // del file, ma NON sono mai una riga dell'ordine, né nell'Excel né nel PDF. exportRows() = righe che escono nei file.
