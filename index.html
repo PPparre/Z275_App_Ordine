@@ -265,6 +265,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
      (nel campo chiuso il testo resta bianco su fondo scuro) */
   select option{ color:#111827 !important; background:#ffffff !important; }
   select option:disabled{ color:#6b7280 !important; }
+  /* v28.3: bollino NC (non codificato) sulla foto, in basso a destra; ambra per distinguerlo dall'FP rosso */
+  .nc-stamp{
+    position:absolute; bottom:2px; right:-36px; width:clamp(34px, calc(var(--qimg,140px) * .40), 62px); height:clamp(34px, calc(var(--qimg,140px) * .40), 62px);
+    border-radius:50%; background:#E07B00; color:#fff; border:3px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,.4);
+    display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:.3px;
+    font-size:clamp(14px, calc(var(--qimg,140px) * .16), 26px); transform:rotate(-10deg); line-height:1;
+  }
   .fp-mini{display:inline-block; background:var(--brand-red); color:#fff; font-size:9.5px; font-weight:800; border-radius:8px; padding:0 5px; margin-left:6px; vertical-align:middle; line-height:15px;}
   .fp-stamp{
     position:absolute; top:0; right:-48px; width:clamp(42px, calc(var(--qimg,140px) * .52), 80px); height:clamp(42px, calc(var(--qimg,140px) * .52), 80px);
@@ -611,6 +618,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     box-shadow:0 6px 16px rgba(20,40,60,.2); max-height:220px; overflow-y:auto; text-align:left;
   }
   .os-suggest.show{ display:block; }
+  /* v28.2: nell'inserimento manuale l'elenco si apre SOPRA il campo codice (sulla zona della foto): così il campo quantità e
+     il tasto «Aggiungi» restano sempre liberi e un tocco su di essi non può scegliere per errore un suggerimento */
+  #osSuggest{ top:auto; bottom:100%; margin:0 0 2px 0; }
   .os-suggest-item{ padding:7px 10px; border-bottom:1px solid #f0f3f5; }
   .os-suggest-item:last-child{ border-bottom:none; }
   .os-suggest-item:active{ background:#fdeceb; }
@@ -1522,7 +1532,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "28.0";
+const APP_VERSION = "28.4";
 const APP_VERSION_DATE = "22.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1877,6 +1887,16 @@ function isNeverCodedMaterial(code){
   const up = String(code).trim().toUpperCase();
   return DISPLAY_MATERIAL_CODES.includes(up);
 }
+
+// v28.3: «NC» = articolo senza il codice del cliente, per i clienti che gestiscono le referenze (stessa regola della scritta rossa
+// «NON CODIFICATO»; il materiale da allestimento e gli FP ne sono esclusi). SAP salta in silenzio le righe con la cella
+// Cod.Cli. vuota: per quelle righe nell'Excel si scrive il codice articolo abbreviato + «NC» (es. «601 NC»), che SAP non troverà
+// tra le referenze, così il caricamento segnala l'articolo invece di ignorarlo.
+function isNonCodificato(code, cliVal, isFp){
+  if(!code || isFp || cliVal) return false;
+  return committenteGestisceCodifica() && !isNeverCodedMaterial(code);
+}
+function ncMarkerFor(code){ return compactLabelCode(code) + ' NC'; }
 
 function photoB64For(code){
   let i = PRODUCT_PHOTOS_INDEX[String(code)];
@@ -2256,7 +2276,8 @@ function refreshQtyPromptPreview(){
   // i bolli stanno fuori dal riquadro della foto (che ritaglia): così possono sporgere dall'angolo
   document.getElementById('qtyPromptStamps').innerHTML =
       (match.fp ? '<span class="fp-stamp" aria-label="Fuori produzione">FP</span>' : '')
-    + (match.selex ? SELEX_STAMP_HTML : '');
+    + (match.selex ? SELEX_STAMP_HTML : '')
+    + (isNonCodificato(match.code, cliVal, match.fp) ? '<span class="nc-stamp" aria-label="Non codificato" title="Non codificato per questo cliente">NC</span>' : '');
 
   if(match.fp){
     // fuori produzione: nessun avviso su cavi/QBM, nessuna quantità, nessun pulsante di aggiunta
@@ -2381,11 +2402,66 @@ const DISPLAY_MATERIAL_LIST = DISPLAY_MATERIAL_CODES
 const DISPLAY_MATERIAL_BY_CODE = {};
 DISPLAY_MATERIAL_LIST.forEach(e => { DISPLAY_MATERIAL_BY_CODE[String(e.code).toUpperCase()] = e; });
 
+// v28.2: la tendina di suggerimenti vale per TUTTI gli articoli, non solo lampadine e materiale da allestimento.
+// Mentre si scrive il codice (anche solo il numero: «535» propone PP0535, PP0535X, PP0535XL…) compaiono sotto, con foto,
+// i codici che iniziano così; scrivendo lettere si cercano anche le parole della descrizione («zanz» → zanzariere).
+// Valgono le stesse regole di visibilità del cliente (articoli Selex D solo ai clienti Selex) e gli FP compaiono per ultimi
+// con il tag FP. Le lampadine OSRAM («OS…») e le parole chiave del materiale da allestimento funzionano come prima.
+let SUG_INDEX = null, SUG_INDEX_DB = null;
+function suggestIndex(){
+  if(SUG_INDEX && SUG_INDEX_DB === DB) return SUG_INDEX;
+  SUG_INDEX_DB = DB;
+  SUG_INDEX = DB.filter(e => e.desc && !LABEL_MATERIAL_CODES[String(e.code).toUpperCase()]).map(e => {
+    const code = String(e.code).toUpperCase(), desc = String(e.desc).toUpperCase();
+    return { e, code, short: code.replace(/^PP0*/, ''), desc, words: desc.split(/[^A-Z0-9]+/).filter(Boolean) };
+  });
+  return SUG_INDEX;
+}
+function suggestPhotoHtml(code, desc){
+  const b64 = photoB64For(code);
+  return b64 ? `<img src="data:image/jpeg;base64,${b64}" alt="${desc || code}" style="width:100%; height:100%; object-fit:contain;">` : '📦';
+}
+function genericArticleSuggest(rawIn){
+  const raw = String(rawIn || '').trim().toUpperCase();
+  const q = raw.replace(/\s+/g, '');
+  if(q.length < 2) return [];
+  const qs = q.replace(/^PP0*/, '').replace(/^0+/, '');       // forma breve di quanto digitato: senza PP e senza zeri iniziali
+  const isPPOnly = /^PP0*$/.test(q);                          // «PP», «PP0»…: troppo generico per proporre qualcosa
+  if(isPPOnly) return [];
+  const hasDigit = /\d/.test(q), hasLetter = /[A-Z]/.test(raw);
+  if(!hasDigit && q.length < 3) return [];
+  const cm = currentCM(), out = [];
+  for(const it of suggestIndex()){
+    if(!visibleForClient(it.e, cm)) continue;                 // gli articoli non visibili per il cliente non esistono
+    let score = 99;
+    if(it.code === q || (qs && it.short === qs)) score = 0;
+    else if(it.code.startsWith(q) || (qs && it.short.startsWith(qs))) score = 1;
+    else {
+      const cli = String((it.e.cliByCM || {})[cm] || '').toUpperCase();
+      if(q.length >= 3 && cli && cli.startsWith(q)) score = 2;
+      else if(raw.length >= 3 && hasLetter){
+        const toks = raw.split(/\s+/).filter(Boolean);
+        if(toks.every(t => it.words.some(w => w.startsWith(t)))) score = 3;
+        else if(it.desc.includes(raw)) score = 4;
+      }
+    }
+    if(score < 99) out.push({ it, score });
+  }
+  out.sort((x, y) => (x.score - y.score) || ((x.it.e.fp ? 1 : 0) - (y.it.e.fp ? 1 : 0)) ||
+                     (x.it.code.length - y.it.code.length) || (x.it.code < y.it.code ? -1 : 1));
+  return out.slice(0, 30).map(x => x.it.e);
+}
+
+function hideOsSuggest(){
+  const box = document.getElementById('osSuggest');
+  box.classList.remove('show'); box.innerHTML = '';
+  const pop = document.querySelector('#qtyPromptOverlay .qty-prompt-box'); if(pop) pop.style.minHeight = '';
+}
 function updateOsSuggest(){
   const box = document.getElementById('osSuggest');
   const raw = document.getElementById('qtyPromptCodeInput').value.trim().toUpperCase();
   if(raw.length < 2){
-    box.classList.remove('show'); box.innerHTML = '';
+    hideOsSuggest();
     return;
   }
 
@@ -2404,30 +2480,49 @@ function updateOsSuggest(){
         DISPLAY_MATERIAL_KEYWORD_MAP[kw].forEach(c => seen.add(c));
       }
     });
-    matches = Array.from(seen).map(c => DISPLAY_MATERIAL_BY_CODE[c.toUpperCase()]).filter(e=>e);
+    const mat = Array.from(seen).map(c => DISPLAY_MATERIAL_BY_CODE[c.toUpperCase()]).filter(e=>e);
+    // 3. v28.2: tutti gli altri articoli, per codice e per descrizione
+    const have = new Set(mat.map(e => String(e.code).toUpperCase()));
+    matches = mat.concat(genericArticleSuggest(raw).filter(e => !have.has(String(e.code).toUpperCase())));
   }
 
-  if(matches.length === 0){ box.classList.remove('show'); box.innerHTML = ''; return; }
+  if(matches.length === 0){ hideOsSuggest(); return; }
+  // codice già scritto per intero e nessun'altra alternativa: l'elenco con la sola voce identica a ciò che si è scritto è inutile
+  if(matches.length === 1 && String(matches[0].code).toUpperCase() === raw.replace(/\s+/g, '')){ hideOsSuggest(); return; }
   box.innerHTML = matches.map(e => `
-    <div class="os-suggest-item" data-code="${e.code}">
-      <div class="os-suggest-code">${e.code}</div>
-      <div class="os-suggest-desc">${e.desc || ''}</div>
+    <div class="os-suggest-item" data-code="${e.code}" style="display:flex; align-items:center; gap:8px;">
+      <div style="flex:1; min-width:0;">
+        <div class="os-suggest-code">${e.code}${e.fp ? '<span class="fp-mini">FP</span>' : ''}</div>
+        <div class="os-suggest-desc">${e.desc || ''}</div>
+      </div>
+      <div class="row-thumb" style="flex-shrink:0; width:34px; height:34px; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; overflow:hidden;">${suggestPhotoHtml(e.code, e.desc)}</div>
     </div>
   `).join('');
   box.classList.add('show');
+  // l'elenco sta sopra il campo codice: altezza = spazio tra la barra Manuale/Scan/Fine e il campo (scorre se le voci sono più)
+  try{
+    const inp = document.getElementById('qtyPromptCodeInput'), pop = document.querySelector('#qtyPromptOverlay .qty-prompt-box');
+    const bar = document.getElementById('qtyModeBar') || pop.firstElementChild;
+    const space = inp.getBoundingClientRect().top - bar.getBoundingClientRect().bottom - 10;
+    box.style.maxHeight = Math.max(92, Math.min(260, space)) + 'px';
+  }catch(e){}
+  box.scrollTop = 0;
   box.querySelectorAll('.os-suggest-item').forEach(item=>{
     item.addEventListener('mousedown', (ev)=>{ // mousedown: precede il blur dell'input
       ev.preventDefault();
       document.getElementById('qtyPromptCodeInput').value = item.dataset.code;
-      box.classList.remove('show');
+      hideOsSuggest();
       refreshQtyPromptPreview();
+      // scelto l'articolo si passa subito alla quantità (se l'articolo è ordinabile)
+      const qi = document.getElementById('qtyPromptInput');
+      if(qi && getComputedStyle(qi).display !== 'none'){ setTimeout(() => { qi.focus(); try{ qi.select(); }catch(e){} }, 0); }
     });
   });
 }
 document.getElementById('qtyPromptCodeInput').addEventListener('input', refreshQtyPromptPreview);
 document.getElementById('qtyPromptCodeInput').addEventListener('input', updateOsSuggest);
 document.getElementById('qtyPromptCodeInput').addEventListener('blur', ()=>{
-  setTimeout(()=>document.getElementById('osSuggest').classList.remove('show'), 150);
+  setTimeout(hideOsSuggest, 150);
 });
 
 // match: se arriva da una scansione, il codice è già noto e si passa direttamente al focus sulla
@@ -4323,13 +4418,39 @@ const STYLES_XML_PATH = 'xl/styles.xml';
 function getCellEl(doc, ref){
   return doc.querySelector('c[r="'+ref+'"]');
 }
+// v28.1: se nel modello manca una cella (è successo con E9, il codice cliente della seconda riga: l'app la saltava in
+// silenzio) la si crea al posto giusto della riga, con lo stile della stessa colonna nella riga sopra o sotto.
+function colIndexOf(letters){ let n = 0; for(const ch of String(letters)) n = n * 26 + (ch.charCodeAt(0) - 64); return n; }
+function getOrCreateCellEl(doc, ref){
+  let cell = getCellEl(doc, ref);
+  if(cell) return cell;
+  const m = /^([A-Z]+)(\d+)$/.exec(ref);
+  if(!m) return null;
+  const col = m[1], rowNum = parseInt(m[2], 10);
+  const row = doc.querySelector('row[r="' + rowNum + '"]');
+  if(!row) return null;                      // riga assente: non si inventano righe
+  const NS = doc.documentElement.namespaceURI;
+  const c = doc.createElementNS(NS, 'c');
+  c.setAttribute('r', ref);
+  const near = doc.querySelector('c[r="' + col + (rowNum - 1) + '"]') || doc.querySelector('c[r="' + col + (rowNum + 1) + '"]');
+  const st = near && near.getAttribute('s');
+  if(st) c.setAttribute('s', st);
+  const ci = colIndexOf(col);
+  let before = null;
+  for(const el of Array.from(row.children)){
+    const rr = /^([A-Z]+)/.exec(el.getAttribute('r') || '');
+    if(rr && colIndexOf(rr[1]) > ci){ before = el; break; }
+  }
+  row.insertBefore(c, before);
+  return c;
+}
 
-// Scrive un valore in una cella esistente del modello, senza toccarne lo stile (attributo s).
-// Se la cella non esiste nel template (caso raro, fuori dalle righe predisposte) non fa nulla:
-// non aggiungiamo mai celle non previste dal modello.
+// Celle che non è stato possibile scrivere nel file (dovrebbe restare sempre vuoto): generateFile lo controlla.
+let WRITE_FAILURES = [];
+// Scrive un valore in una cella del modello, senza toccarne lo stile (attributo s).
 function writeCellValue(doc, ref, type, value){
-  const cell = getCellEl(doc, ref);
-  if(!cell) return;
+  const cell = getOrCreateCellEl(doc, ref);
+  if(!cell){ WRITE_FAILURES.push(ref); return false; }
   const NS = doc.documentElement.namespaceURI;
   while(cell.firstChild) cell.removeChild(cell.firstChild);
   if(type === 'n'){
@@ -4346,6 +4467,7 @@ function writeCellValue(doc, ref, type, value){
     is.appendChild(t);
     cell.appendChild(is);
   }
+  return true;
 }
 
 // Trova (o crea, se davvero assente) nel foglio stili l'indice del fill giallo pieno FFFF00.
@@ -4459,6 +4581,7 @@ async function generateFile(){
   // E5: Note AC
   if(noteXls){ writeCellValue(sheetDoc, 'E5', 's', noteXls); }
 
+  WRITE_FAILURES = [];
   const yellowCache = {};
   xr.forEach((r, i) => {
     const rIdx = FIRST_ROW + i;
@@ -4477,9 +4600,14 @@ async function generateFile(){
     writeCellValue(sheetDoc, 'C'+rIdx, 'n', r.qtyFinal);
     if(r.match && r.match.imb != null){ writeCellValue(sheetDoc, 'D'+rIdx, 'n', r.match.imb); }
     if(r.cli){ writeCellValue(sheetDoc, 'E'+rIdx, 's', r.cli); }
+    else if(isNonCodificato(r.match ? r.match.code : r.code, '', r.match && r.match.fp)){ writeCellValue(sheetDoc, 'E'+rIdx, 's', ncMarkerFor(r.match ? r.match.code : r.code)); }
     if(r.match && r.match.desc){ writeCellValue(sheetDoc, 'F'+rIdx, 's', r.match.desc); }
   });
 
+  if(WRITE_FAILURES.length){
+    console.error('Celle non scritte nel file:', WRITE_FAILURES);
+    alert('Attenzione: nel file Excel ' + WRITE_FAILURES.length + ' valori non sono stati scritti (celle ' + WRITE_FAILURES.slice(0, 6).join(', ') + (WRITE_FAILURES.length > 6 ? '…' : '') + '). Controlla il file prima di caricarlo in SAP e avvisa l\'ufficio.');
+  }
   zip.file(SHEET_XML_PATH, serializeXmlDoc(sheetDoc));
   zip.file(STYLES_XML_PATH, serializeXmlDoc(stylesDoc));
 
