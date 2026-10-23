@@ -272,6 +272,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:.3px;
     font-size:clamp(14px, calc(var(--qimg,140px) * .16), 26px); transform:rotate(-10deg); line-height:1;
   }
+  .nc-tag{display:inline-block; background:#E07B00; color:#fff; font-size:9.5px; font-weight:800; border-radius:8px; padding:0 6px; margin-left:6px; vertical-align:middle; line-height:15px;}
   .fp-mini{display:inline-block; background:var(--brand-red); color:#fff; font-size:9.5px; font-weight:800; border-radius:8px; padding:0 5px; margin-left:6px; vertical-align:middle; line-height:15px;}
   .fp-stamp{
     position:absolute; top:0; right:-48px; width:clamp(42px, calc(var(--qimg,140px) * .52), 80px); height:clamp(42px, calc(var(--qimg,140px) * .52), 80px);
@@ -1532,8 +1533,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "28.4";
-const APP_VERSION_DATE = "22.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
+const APP_VERSION = "29.0";
+const APP_VERSION_DATE = "23.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
 const DEFAULT_LEAD_BUSINESS_DAYS = 4;
@@ -1892,6 +1893,44 @@ function isNeverCodedMaterial(code){
 // «NON CODIFICATO»; il materiale da allestimento e gli FP ne sono esclusi). SAP salta in silenzio le righe con la cella
 // Cod.Cli. vuota: per quelle righe nell'Excel si scrive il codice articolo abbreviato + «NC» (es. «601 NC»), che SAP non troverà
 // tra le referenze, così il caricamento segnala l'articolo invece di ignorarlo.
+// v28.8: segnaposto «codice + NC» nella cella Cod.Cli.: DISATTIVATO per provare come si comporta SAP con la cella vuota ora che F4 è
+// gestita (vuota per i clienti con referenze). Per riattivarlo basta mettere true.
+const NC_MARKER_IN_EXCEL = true;
+// v28.9: invece del codice + NC, nella cella Cod.Cli. delle righe non codificate si scrive «NON codificato» in rosso grassetto
+// (come faceva la vecchia matrice), perché SAP con la cella vuota dava ancora problemi.
+const NC_CELL_TEXT = 'NON codificato';
+// v29.0: materiale di consumo (minibox, bobine, cataloghi…) nei clienti con referenze: nessun cliente lo codifica e con la cella vuota
+// SAP non lo carica. Prova: nella cella Cod.Cli. si riscrive il codice articolo stesso (es. IM95005), solo per questi articoli.
+const CONSUMABLE_CODE_IN_CLI = true;
+// Stile rosso grassetto: copia dello stile della cella con il carattere rosso grassetto già presente nel modello (quello del
+// messaggio di errore di F4); se non c'è lo crea.
+function redBoldStyleIndex(stylesDoc, baseIdx, cache){
+  if(cache[baseIdx] !== undefined) return cache[baseIdx];
+  const NS = stylesDoc.documentElement.namespaceURI;
+  const fonts = stylesDoc.querySelector('fonts');
+  let fid = -1;
+  Array.from(fonts.children).forEach((f, i) => {
+    if(fid < 0 && f.querySelector('b') && f.querySelector('color[rgb="FFFF0000"]') && !f.querySelector('i')) fid = i;
+  });
+  if(fid < 0){
+    const font = stylesDoc.createElementNS(NS, 'font');
+    font.appendChild(stylesDoc.createElementNS(NS, 'b'));
+    const sz = stylesDoc.createElementNS(NS, 'sz'); sz.setAttribute('val', '11'); font.appendChild(sz);
+    const col = stylesDoc.createElementNS(NS, 'color'); col.setAttribute('rgb', 'FFFF0000'); font.appendChild(col);
+    const nm = stylesDoc.createElementNS(NS, 'name'); nm.setAttribute('val', 'Calibri'); font.appendChild(nm);
+    const fam = stylesDoc.createElementNS(NS, 'family'); fam.setAttribute('val', '2'); font.appendChild(fam);
+    const sch = stylesDoc.createElementNS(NS, 'scheme'); sch.setAttribute('val', 'minor'); font.appendChild(sch);
+    fonts.appendChild(font); fid = fonts.children.length - 1; fonts.setAttribute('count', String(fonts.children.length));
+  }
+  const cellXfs = stylesDoc.querySelector('cellXfs');
+  const xfNodes = Array.from(cellXfs.children);
+  const clone = (xfNodes[baseIdx] || xfNodes[0]).cloneNode(true);
+  clone.setAttribute('fontId', String(fid)); clone.setAttribute('applyFont', '1');
+  cellXfs.appendChild(clone);
+  cellXfs.setAttribute('count', String(xfNodes.length + 1));
+  cache[baseIdx] = xfNodes.length;
+  return xfNodes.length;
+}
 function isNonCodificato(code, cliVal, isFp){
   if(!code || isFp || cliVal) return false;
   return committenteGestisceCodifica() && !isNeverCodedMaterial(code);
@@ -2492,7 +2531,7 @@ function updateOsSuggest(){
   box.innerHTML = matches.map(e => `
     <div class="os-suggest-item" data-code="${e.code}" style="display:flex; align-items:center; gap:8px;">
       <div style="flex:1; min-width:0;">
-        <div class="os-suggest-code">${e.code}${e.fp ? '<span class="fp-mini">FP</span>' : ''}</div>
+        <div class="os-suggest-code">${e.code}${e.fp ? '<span class="fp-mini">FP</span>' : ''}${isNonCodificato(e.code, cliForMatch(e), e.fp) ? '<span class="nc-tag" title="Non codificato per questo cliente">NC</span>' : ''}</div>
         <div class="os-suggest-desc">${e.desc || ''}</div>
       </div>
       <div class="row-thumb" style="flex-shrink:0; width:34px; height:34px; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; overflow:hidden;">${suggestPhotoHtml(e.code, e.desc)}</div>
@@ -4445,6 +4484,46 @@ function getOrCreateCellEl(doc, ref){
   return c;
 }
 
+// v28.5: la cella F4 della matrice è un interruttore per SAP, che controlla solo se è vuota o no:
+//   - cliente CON referenze (codifica interna): F4 deve essere VUOTA (SAP carica per codice cliente);
+//   - cliente SENZA referenze: F4 deve contenere un testo qualsiasi (SAP carica per codice articolo).
+// Nel modello F4 è una formula («DATA CONSEGNA MANCANTE…») con il testo già memorizzato: l'app non la ricalcola, quindi prima
+// ogni file usciva con F4 piena anche per i clienti con referenze.
+const F4_NO_REF_TEXT = 'Codifica Poly Pool';
+// Lo stile di F4 nel modello è «grassetto rosso» (per il messaggio di errore): per il testo dei clienti senza referenze se ne
+// crea uno discreto, copia di quello di F4 ma con carattere grigio, normale, corpo 9.
+function discreetTextStyleIndex(stylesDoc, baseIdx){
+  const NS = stylesDoc.documentElement.namespaceURI;
+  const fonts = stylesDoc.querySelector('fonts');
+  const font = stylesDoc.createElementNS(NS, 'font');
+  const sz = stylesDoc.createElementNS(NS, 'sz'); sz.setAttribute('val', '9'); font.appendChild(sz);
+  const col = stylesDoc.createElementNS(NS, 'color'); col.setAttribute('rgb', 'FF7F7F7F'); font.appendChild(col);
+  const nm = stylesDoc.createElementNS(NS, 'name'); nm.setAttribute('val', 'Calibri'); font.appendChild(nm);
+  const fam = stylesDoc.createElementNS(NS, 'family'); fam.setAttribute('val', '2'); font.appendChild(fam);
+  const sch = stylesDoc.createElementNS(NS, 'scheme'); sch.setAttribute('val', 'minor'); font.appendChild(sch);
+  fonts.appendChild(font);
+  const fontId = fonts.children.length - 1;
+  fonts.setAttribute('count', String(fonts.children.length));
+  const cellXfs = stylesDoc.querySelector('cellXfs');
+  const xfNodes = Array.from(cellXfs.children);
+  const clone = (xfNodes[baseIdx] || xfNodes[0]).cloneNode(true);
+  clone.setAttribute('fontId', String(fontId)); clone.setAttribute('applyFont', '1');
+  cellXfs.appendChild(clone);
+  cellXfs.setAttribute('count', String(xfNodes.length + 1));
+  return xfNodes.length;
+}
+function setReferenceSwitchCell(doc, stylesDoc){
+  const cell = getOrCreateCellEl(doc, 'F4');
+  if(!cell){ WRITE_FAILURES.push('F4'); return; }
+  if(committenteGestisceCodifica()){
+    while(cell.firstChild) cell.removeChild(cell.firstChild);   // via formula e valore memorizzato
+    cell.removeAttribute('t');                                  // resta lo stile, la cella è vuota
+  } else {
+    writeCellValue(doc, 'F4', 's', F4_NO_REF_TEXT);
+    try{ cell.setAttribute('s', String(discreetTextStyleIndex(stylesDoc, parseInt(cell.getAttribute('s') || '0', 10)))); }catch(e){ console.error('stile F4:', e); }
+  }
+}
+
 // Celle che non è stato possibile scrivere nel file (dovrebbe restare sempre vuoto): generateFile lo controlla.
 let WRITE_FAILURES = [];
 // Scrive un valore in una cella del modello, senza toccarne lo stile (attributo s).
@@ -4582,6 +4661,7 @@ async function generateFile(){
   if(noteXls){ writeCellValue(sheetDoc, 'E5', 's', noteXls); }
 
   WRITE_FAILURES = [];
+  const redCache = {};
   const yellowCache = {};
   xr.forEach((r, i) => {
     const rIdx = FIRST_ROW + i;
@@ -4600,7 +4680,14 @@ async function generateFile(){
     writeCellValue(sheetDoc, 'C'+rIdx, 'n', r.qtyFinal);
     if(r.match && r.match.imb != null){ writeCellValue(sheetDoc, 'D'+rIdx, 'n', r.match.imb); }
     if(r.cli){ writeCellValue(sheetDoc, 'E'+rIdx, 's', r.cli); }
-    else if(isNonCodificato(r.match ? r.match.code : r.code, '', r.match && r.match.fp)){ writeCellValue(sheetDoc, 'E'+rIdx, 's', ncMarkerFor(r.match ? r.match.code : r.code)); }
+    else if(CONSUMABLE_CODE_IN_CLI && committenteGestisceCodifica() && isNeverCodedMaterial(r.match ? r.match.code : r.code)){
+      writeCellValue(sheetDoc, 'E'+rIdx, 's', String(r.match ? r.match.code : r.code));
+    }
+    else if(NC_MARKER_IN_EXCEL && isNonCodificato(r.match ? r.match.code : r.code, '', r.match && r.match.fp)){
+      writeCellValue(sheetDoc, 'E'+rIdx, 's', NC_CELL_TEXT);
+      const ce = getCellEl(sheetDoc, 'E'+rIdx);
+      if(ce){ try{ ce.setAttribute('s', String(redBoldStyleIndex(stylesDoc, parseInt(ce.getAttribute('s') || '0', 10), redCache))); }catch(e){ console.error('stile NC:', e); } }
+    }
     if(r.match && r.match.desc){ writeCellValue(sheetDoc, 'F'+rIdx, 's', r.match.desc); }
   });
 
@@ -4608,7 +4695,19 @@ async function generateFile(){
     console.error('Celle non scritte nel file:', WRITE_FAILURES);
     alert('Attenzione: nel file Excel ' + WRITE_FAILURES.length + ' valori non sono stati scritti (celle ' + WRITE_FAILURES.slice(0, 6).join(', ') + (WRITE_FAILURES.length > 6 ? '…' : '') + '). Controlla il file prima di caricarlo in SAP e avvisa l\'ufficio.');
   }
+  setReferenceSwitchCell(sheetDoc, stylesDoc);
   zip.file(SHEET_XML_PATH, serializeXmlDoc(sheetDoc));
+  // la formula di F4 non c'è più: si toglie anche l'elenco dei calcoli (calcChain) che la citava, che Excel ricrea da solo
+  try{
+    if(zip.file('xl/calcChain.xml')){
+      zip.remove('xl/calcChain.xml');
+      const relsPath = 'xl/_rels/workbook.xml.rels', ctPath = '[Content_Types].xml';
+      const rels = await zip.file(relsPath).async('string');
+      zip.file(relsPath, rels.replace(/<Relationship\b[^>]*calcChain[^>]*\/>/g, ''));
+      const ct = await zip.file(ctPath).async('string');
+      zip.file(ctPath, ct.replace(/<Override\b[^>]*calcChain[^>]*\/>/g, ''));
+    }
+  }catch(e){ console.error('calcChain non rimosso:', e); }
   zip.file(STYLES_XML_PATH, serializeXmlDoc(stylesDoc));
 
   const blob = await zip.generateAsync({
