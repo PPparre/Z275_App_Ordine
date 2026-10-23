@@ -1533,7 +1533,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "29.0";
+const APP_VERSION = "29.1";
 const APP_VERSION_DATE = "23.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -5097,7 +5097,7 @@ function createConfermaPdf(d){
       grayBox(L, tb, CW, TOT_H);
       vlines(bodyTop, tb); ln(L, tb, R, tb);
       let fy = tb; doc.setLineWidth(0.7); ln(L, fy - TOT_H, R, fy - TOT_H);
-      setF(LAB, 7.6); txt('Totale righe: ' + rowsD.length, L + 4, fy - 11.5); txt('Totale pezzi: ' + d.totPezzi, R - 5, fy - 11.5, 'right');
+      setF(LAB, 7.6); txt('Totale righe: ' + rowsD.length, L + 4, fy - 11.5); txt('Totale pezzi (solo articoli di vendita): ' + d.totPezzi, R - 5, fy - 11.5, 'right');
       fy -= TOT_H;
       if(noteLines.length){
         ln(L, fy - noteH, R, fy - noteH); setF(LAB, 7.6); txt('Note', L + 4, fy - 10.5);
