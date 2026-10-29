@@ -1533,7 +1533,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "29.1";
+const APP_VERSION = "29.2";
 const APP_VERSION_DATE = "23.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -1645,6 +1645,9 @@ updateConnIndicator();
 let DB = [];
 let AGENTI_TABLE = [];
 let CATALOGO_VERSIONE = '';          // versione del catalogo.json caricato (es. '1.4')
+// v29.2: foto contenute nel catalogo.json (codice -> JPEG base64), caricate dal convertitore: hanno la precedenza su quelle
+// incorporate nell'app, così una foto nuova o sostituita non richiede una nuova versione dell'app.
+let CATALOGO_FOTO = {};
 let CATALOGO_OBSOLETO = false;       // true se il catalogo è stato generato con un convertitore vecchio
 // Il catalogo (articoli + destinazioni) non e' piu' scritto qui dentro: viene caricato da un
 // file esterno (catalogo.json) pubblicato su GitHub insieme a questo index.html. Così un
@@ -1668,7 +1671,10 @@ const CATALOGO_URL = 'https://raw.githubusercontent.com/ppparre/Z275_App_Ordine/
   function applyCatalogo(cat){
     DB = cat.articoli || [];
     AGENTI_TABLE = cat.destinazioni || [];
-    try{ localStorage.setItem('z275_catalogo_cache', JSON.stringify(cat)); }catch(e){}
+    CATALOGO_FOTO = (cat.foto && typeof cat.foto === 'object') ? cat.foto : {};
+    // in cache prima il catalogo (la parte importante), poi le foto a parte: se lo spazio non basta, si perde al massimo una foto, mai il catalogo
+    try{ const copy = Object.assign({}, cat); delete copy.foto; localStorage.setItem('z275_catalogo_cache', JSON.stringify(copy)); }catch(e){}
+    try{ localStorage.setItem('z275_catalogo_foto', JSON.stringify(CATALOGO_FOTO)); }catch(e){}
     CATALOGO_VERSIONE = String(cat.versione || '1.0');
     CATALOGO_OBSOLETO = versionLess(CATALOGO_VERSIONE, '1.3');
     if(CATALOGO_OBSOLETO){
@@ -1695,7 +1701,11 @@ const CATALOGO_URL = 'https://raw.githubusercontent.com/ppparre/Z275_App_Ordine/
   if(!loaded){
     try{
       const cached = localStorage.getItem('z275_catalogo_cache');
-      if(cached){ applyCatalogo(JSON.parse(cached)); loaded = true; }
+      if(cached){
+        const c = JSON.parse(cached);
+        if(!c.foto){ try{ const f = localStorage.getItem('z275_catalogo_foto'); if(f) c.foto = JSON.parse(f); }catch(e){} }
+        applyCatalogo(c); loaded = true;
+      }
     }catch(e){}
   }
   if(loaded && CATALOGO_OBSOLETO){
@@ -1938,6 +1948,11 @@ function isNonCodificato(code, cliVal, isFp){
 function ncMarkerFor(code){ return compactLabelCode(code) + ' NC'; }
 
 function photoB64For(code){
+  // 1) foto del catalogo (precedenza); per un articolo Selex D senza foto propria, quella del codice base
+  const k = String(code);
+  const fc = CATALOGO_FOTO[k] || (SELEX_BASE_BY_CODE[k] !== undefined ? CATALOGO_FOTO[SELEX_BASE_BY_CODE[k]] : null);
+  if(fc) return fc;
+  // 2) foto incorporate nell'app
   let i = PRODUCT_PHOTOS_INDEX[String(code)];
   if(i === undefined && SELEX_BASE_BY_CODE[String(code)] !== undefined){
     i = PRODUCT_PHOTOS_INDEX[SELEX_BASE_BY_CODE[String(code)]]; // articolo Selex: stessa foto del codice base
