@@ -1534,7 +1534,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "29.3";
+const APP_VERSION = "29.4";
 const APP_VERSION_DATE = "01.11.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -5202,15 +5202,19 @@ document.getElementById('btnPdf').addEventListener('click', () => {
 document.getElementById('btnOpenMail').addEventListener('click', async (e)=>{
   if(pendingShare){
     const ps = pendingShare;
-    copyTextSync('ordini@polypool.it');          // la condivisione non può indicare il destinatario: si incolla in «A»
+    // La condivisione parte per prima, subito al tocco (ha bisogno dell'attivazione dell'utente); solo dopo si copia il
+    // destinatario negli appunti, perché la condivisione non può indicarlo: si incolla in «A».
+    let sharing;
+    try{ sharing = navigator.share({ files: [ps.file], title: ps.title, text: ps.text }); }catch(err0){ sharing = Promise.reject(err0); }
+    copyTextSync('ordini@polypool.it');
     try{
-      await navigator.share({ files: [ps.file], title: ps.title, text: ps.text });
+      await sharing;
       pendingShare = null; pendingMailtoUrl = null;
       document.getElementById('btnOpenMail').style.display = 'none'; document.getElementById('btnOpenMailPlain').style.display = 'none';
     }catch(err){
       if(err && err.name === 'AbortError') return;     // annullato dall'utente: il pulsante resta disponibile
       console.error(err);
-      alert("Non riesco ad aprire la condivisione del file (" + (err && err.name ? err.name : 'errore') + "). Usa «Apri Mail senza file» e allega a mano il file scaricato.");
+      alert("Non riesco ad aprire la condivisione del file (" + (err && err.name ? err.name : 'errore') + (err && err.message ? ': ' + err.message : '') + "). Usa «Apri Mail senza file» e allega a mano il file scaricato.");
     }
     return;
   }
