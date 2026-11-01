@@ -1,65 +1,73 @@
 <!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Z275 · Prova condivisione file (2)</title>
+<title>Z275 · Prova condivisione file (3)</title>
 <style>
  body{font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0;background:#f3f4f6;color:#111827}
  header{background:#162030;color:#fff;padding:14px 16px;font-weight:700}
  main{max-width:560px;margin:0 auto;padding:14px}
  .card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
- h2{font-size:15px;margin:0 0 6px} p{font-size:14px;line-height:1.45;margin:6px 0}
- .t{border-top:1px solid #eef0f2;padding:10px 0}.t:first-of-type{border-top:0}
- .nome{font-size:14px;font-weight:700}.nome small{display:block;font-weight:400;color:#6b7280;word-break:break-all}
- .bt{display:flex;gap:8px;margin-top:8px}
- button{flex:1;border:0;border-radius:8px;background:#c8102e;color:#fff;font-weight:700;padding:9px 6px;font-size:13px}
- button[disabled]{background:#cbd5e1;color:#64748b}
- .esito{font-size:13px;margin-top:6px;min-height:18px;word-break:break-word}
- .ok{color:#15803d;font-weight:700}.ko{color:#c8102e;font-weight:700}.nt{color:#92400e}
+ h2{font-size:15px;margin:0 0 6px} h3{font-size:13px;margin:14px 0 4px;color:#c8102e;text-transform:uppercase;letter-spacing:.4px}
+ p{font-size:14px;line-height:1.45;margin:6px 0}
+ .t{border-top:1px solid #eef0f2;padding:9px 0;display:flex;align-items:center;gap:8px}
+ .nome{flex:1;font-size:14px;font-weight:700;min-width:0}.nome small{display:block;font-weight:400;color:#6b7280;word-break:break-all;font-size:11.5px}
+ .esito{display:block;font-size:12.5px;margin-top:3px;font-weight:700;word-break:break-word}
+ button{border:0;border-radius:8px;background:#c8102e;color:#fff;font-weight:700;padding:10px 14px;font-size:14px}
+ .ok{color:#15803d}.ko{color:#c8102e}
  pre{background:#f3f4f6;border-radius:8px;padding:8px;font-size:12px;white-space:pre-wrap;word-break:break-word}
 </style></head><body>
-<header>Z275 · Prova condivisione file (2)</header>
+<header>Z275 · Prova condivisione file (3)</header>
 <main>
  <div class="card"><h2>Cosa fare</h2>
-  <p>Per ogni riga tocca <b>«Solo file»</b> e poi <b>«File + testo»</b> (quest'ultimo è quello che usa l'app). Se si apre il menu di condivisione puoi scegliere Mail per vedere l'allegato, oppure annullare: va bene lo stesso.</p>
-  <p>Sotto ogni riga compare l'esito. Mandami lo screenshot dell'intera pagina.</p></div>
+  <p>Tocca <b>«Prova»</b> su ogni riga. Se compare <b>✓</b> il menu di condivisione si è aperto (puoi annullare con «indietro»); se compare <b>✗</b> il telefono ha rifiutato quel file.</p>
+  <p>Alla fine mandami lo screenshot di tutta la pagina (scorrendo). Servono circa 17 tocchi.</p></div>
  <div class="card"><h2>Telefono</h2><pre id="amb">…</pre></div>
- <div class="card"><h2>Prove</h2><div id="righe"></div></div>
+ <div class="card" id="righe"></div>
 </main>
 <script>
-const NOME_APP='BRICOLIN SUPERSTORE Vignola - Ordine BONITO del 01.11.26';
 const XLSX='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const TIPI=[
- {n:'Excel, nome semplice',file:'Prova_Z275.xlsx',mime:XLSX},
- {n:'Excel, nome come l\'app (spazi e trattino)',file:NOME_APP+'.xlsx',mime:XLSX},
- {n:'Archivio ZIP',file:'Prova_Z275.zip',mime:'application/zip'},
- {n:'PDF',file:'Prova_Z275.pdf',mime:'application/pdf'},
- {n:'CSV',file:'Prova_Z275.csv',mime:'text/csv'},
- {n:'Testo',file:'Prova_Z275.txt',mime:'text/plain'}
+const G=[
+ ['File compressi',[
+  ['RAR','Prova_Z275.rar','application/vnd.rar'],
+  ['7-Zip','Prova_Z275.7z','application/x-7z-compressed'],
+  ['GZIP','Prova_Z275.gz','application/gzip'],
+  ['ZIP (già provato: controllo)','Prova_Z275.zip','application/zip']]],
+ ['Altri formati di ufficio',[
+  ['Excel vecchio (.xls)','Prova_Z275.xls','application/vnd.ms-excel'],
+  ['Excel con macro (.xlsm)','Prova_Z275.xlsm','application/vnd.ms-excel.sheet.macroEnabled.12'],
+  ['Word (.docx)','Prova_Z275.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  ['OpenDocument (.ods)','Prova_Z275.ods','application/vnd.oasis.opendocument.spreadsheet']]],
+ ['Excel con tipo o nome diverso (per capire cosa controlla il telefono)',[
+  ['Nome .xlsx, tipo «text/plain»','Prova_Z275.xlsx','text/plain'],
+  ['Nome .xlsx, tipo vuoto','Prova_Z275.xlsx',''],
+  ['Nome .xlsx, tipo «application/octet-stream»','Prova_Z275.xlsx','application/octet-stream'],
+  ['Nome .xlsx.txt, tipo «text/plain»','Prova_Z275.xlsx.txt','text/plain'],
+  ['Nome .csv, tipo Excel','Prova_Z275.csv',XLSX]]],
+ ['Formati di testo',[
+  ['JSON','Prova_Z275.json','application/json'],
+  ['XML','Prova_Z275.xml','text/xml'],
+  ['HTML','Prova_Z275.html','text/html'],
+  ['TSV','Prova_Z275.tsv','text/tab-separated-values']]]
 ];
-const mk=t=>new File(['File di prova Z275 - '+t.n+'\n'+new Date().toISOString()],t.file,{type:t.mime});
 document.getElementById('amb').textContent=[
  'Browser: '+navigator.userAgent.replace(/\s+/g,' ').slice(0,100),
  'HTTPS: '+(window.isSecureContext?'sì':'NO'),
  'navigator.share: '+(('share' in navigator)?'presente':'assente'),
  'navigator.canShare: '+(('canShare' in navigator)?'presente':'assente')
 ].join('\n');
+const mk=(f,m,n)=>new File(['File di prova Z275 - '+n+'\n'+new Date().toISOString()],f,{type:m});
 const box=document.getElementById('righe');
-TIPI.forEach(t=>{
-  let can='n/d'; try{ if(navigator.canShare) can=navigator.canShare({files:[mk(t)]})?'sì':'no'; }catch(e){ can='errore'; }
-  const d=document.createElement('div'); d.className='t';
-  d.innerHTML='<div class="nome">'+t.n+'<small>'+t.file+' · '+t.mime+'</small></div>'
-   +'<div class="nt" style="font-size:13px;margin-top:4px;">canShare: <b>'+can+'</b></div>'
-   +'<div class="bt"><button data-m="solo">Solo file</button><button data-m="testo">File + testo</button></div><div class="esito"><div class="e-solo"></div><div class="e-testo"></div></div>';
-  
-  d.querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
-    const esito=d.querySelector('.e-'+b.dataset.m);
-    const dati={files:[mk(t)]}; if(b.dataset.m==='testo'){ dati.title=t.file.replace(/\.[^.]+$/,''); dati.text='In allegato l\'ordine di prova.'; }
-    esito.className='esito'; esito.textContent='in corso…';
-    try{ await navigator.share(dati); esito.className='esito ok'; esito.textContent='✓ ('+(b.dataset.m==='solo'?'solo file':'file + testo')+') condivisione completata'; }
-    catch(e){
-      if(e.name==='AbortError'){ esito.className='esito ok'; esito.textContent='✓ ('+(b.dataset.m==='solo'?'solo file':'file + testo')+') il menu si è aperto (annullato da te)'; }
-      else { esito.className='esito ko'; esito.textContent='✗ ('+(b.dataset.m==='solo'?'solo file':'file + testo')+') '+e.name+': '+(e.message||''); }
-    }
-  }));
-  box.appendChild(d);
+G.forEach(([titolo,righe])=>{
+  const h=document.createElement('h3'); h.textContent=titolo; box.appendChild(h);
+  righe.forEach(([n,f,m])=>{
+    const d=document.createElement('div'); d.className='t';
+    d.innerHTML='<div class="nome">'+n+'<small>'+f+' · '+(m||'(tipo vuoto)')+'</small><span class="esito"></span></div><button>Prova</button>';
+    const es=d.querySelector('.esito');
+    d.querySelector('button').addEventListener('click',async()=>{
+      es.className='esito'; es.textContent='in corso…';
+      try{ await navigator.share({files:[mk(f,m,n)],title:f.replace(/\.[^.]+$/,''),text:'In allegato il file di prova.'}); es.className='esito ok'; es.textContent='✓ condivisione completata'; }
+      catch(e){ if(e.name==='AbortError'){ es.className='esito ok'; es.textContent='✓ il menu si è aperto (annullato da te)'; } else { es.className='esito ko'; es.textContent='✗ '+e.name+': '+(e.message||''); } }
+    });
+    box.appendChild(d);
+  });
 });
 </script></body></html>
