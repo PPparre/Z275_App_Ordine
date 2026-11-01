@@ -1534,7 +1534,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "29.4";
+const APP_VERSION = "29.5";
 const APP_VERSION_DATE = "01.11.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -3425,6 +3425,11 @@ let fileIsCurrent = false;
 // v29.3: se il telefono può condividere il file Excel (Web Share con file), dopo la generazione il pulsante principale diventa
 // «Invia con file allegato» e passa l'Excel all'app di posta già allegato; altrimenti resta «Apri Mail» (allegato a mano).
 // pendingShare = { file, title, text } quando la condivisione è possibile; si decide con navigator.canShare, mai per tipo di browser.
+// v29.5: DISATTIVATO. La prova su Android (Chrome 156) ha mostrato che l'Excel (e lo ZIP) vengono rifiutati da navigator.share
+// con «NotAllowedError: Permission denied» anche se navigator.canShare risponde «sì» (PDF, CSV e testo invece passano): canShare
+// non è affidabile per questi tipi e non c'è modo di sapere in anticipo se la condivisione funzionerà. L'allegato resta manuale.
+// Il codice resta per un'eventuale riattivazione (es. solo dove una prova reale su iPhone dia esito positivo).
+const SHARE_EXCEL_ENABLED = false;
 let pendingShare = null;
 function refreshMailButtons(){
   const btnMail = document.getElementById('btnOpenMail'), btnPlain = document.getElementById('btnOpenMailPlain');
@@ -4983,7 +4988,7 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
   pendingShare = null;
   try{
     const f = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    if(navigator.canShare && navigator.share && navigator.canShare({ files: [f] })){
+    if(SHARE_EXCEL_ENABLED && navigator.canShare && navigator.share && navigator.canShare({ files: [f] })){
       pendingShare = { file: f, title: orderTitle, text: 'In allegato l\'ordine ' + orderTitle + '.xlsx pronto per il caricamento SAP.' + (labelsSection ? '\n\n' + labelsSection : '') };
     }
   }catch(e){ pendingShare = null; }
