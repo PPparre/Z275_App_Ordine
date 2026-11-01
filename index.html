@@ -872,6 +872,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <button class="btn-red" id="btnSend" style="width:100%;">Genera e invia ordine</button>
   <button class="btn-ghost" id="btnPdf" type="button" style="width:100%; margin-top:8px; font-weight:700;">📄 Conferma ordine PDF</button>
   <button class="btn-red" id="btnOpenMail" style="width:100%; display:none; margin-top:8px; background:var(--sap-bar);">📧 Apri Mail</button>
+  <button class="btn-ghost" id="btnOpenMailPlain" type="button" style="width:100%; display:none; margin-top:8px;">✉️ Apri Mail senza file (allega a mano)</button>
 </div>
 
 <div id="toast"></div>
@@ -1533,8 +1534,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "29.2";
-const APP_VERSION_DATE = "23.10.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
+const APP_VERSION = "29.3";
+const APP_VERSION_DATE = "01.11.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
 const DEFAULT_LEAD_BUSINESS_DAYS = 4;
@@ -3421,20 +3422,36 @@ function removeRow(idx){
 //      testata), si torna allo stato iniziale: il file scaricato non rispecchierebbe più
 //      l'ordine attuale, quindi non ha senso proporre "Apri Mail" come se fosse pronto. ----
 let fileIsCurrent = false;
+// v29.3: se il telefono può condividere il file Excel (Web Share con file), dopo la generazione il pulsante principale diventa
+// «Invia con file allegato» e passa l'Excel all'app di posta già allegato; altrimenti resta «Apri Mail» (allegato a mano).
+// pendingShare = { file, title, text } quando la condivisione è possibile; si decide con navigator.canShare, mai per tipo di browser.
+let pendingShare = null;
+function refreshMailButtons(){
+  const btnMail = document.getElementById('btnOpenMail'), btnPlain = document.getElementById('btnOpenMailPlain');
+  if(!fileIsCurrent){ btnMail.style.display = 'none'; btnPlain.style.display = 'none'; return; }
+  btnMail.style.display = 'block'; btnMail.className = 'btn-red';
+  if(pendingShare){ btnMail.textContent = '📎 Invia con file allegato'; btnPlain.style.display = 'block'; }
+  else { btnMail.textContent = '📧 Apri Mail'; btnPlain.style.display = 'none'; }
+}
+function copyTextSync(text){
+  try{
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+  }catch(e){ return false; }
+}
 function setFileGeneratedState(generated){
   fileIsCurrent = generated;
   const btnSend = document.getElementById('btnSend');
-  const btnMail = document.getElementById('btnOpenMail');
   if(generated){
     btnSend.textContent = '🔄 Rigenera ordine';
     btnSend.className = 'btn-ghost';
-    btnMail.style.display = 'block';
-    btnMail.className = 'btn-red';
   } else {
     btnSend.textContent = 'Genera e invia ordine';
     btnSend.className = 'btn-red';
-    btnMail.style.display = 'none';
+    pendingShare = null;
   }
+  refreshMailButtons();
 }
 function invalidateGeneratedFile(){
   if(fileIsCurrent) setFileGeneratedState(false);
@@ -4925,6 +4942,7 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
     const fgText = hasFg ? 'SCHEDE FONDO GANCIO DA INSERIRE:\n\n- Schede Fondo Gancio: ' + fmtItNum(fondoGancioQty()) + ' pz' : '';
     const mailBodyText = [buildLabelsMailSection(labelInfosPresentNow, notaPersonaleValNow), fgText].filter(Boolean).join('\n\n');
     pendingMailtoUrl = 'mailto:ordini@polypool.it?subject=' + encodeURIComponent(mailSubjectText) + '&body=' + encodeURIComponent(mailBodyText);
+    pendingShare = null;
     setFileGeneratedState(true);
     clearDraft();
     showToast("Richiesta pronta. Tocca 'Apri Mail' per inviarla.");
@@ -4949,10 +4967,9 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url), 4000);
 
-  // Prepara il testo per mailto. Nota: i file .xlsx non sono tra i tipi che Chrome permette di
-  // condividere in automatico con allegato (solo audio/immagini/pdf/video/testo sono ammessi per
-  // policy di sicurezza) — verificato anche con test diretto sul dispositivo. Non è un limite
-  // aggirabile lato codice: l'allegato va sempre aggiunto a mano dall'app Mail.
+  // Prepara il testo per la mail. Con mailto non si può allegare nulla: se il telefono lo permette (Chrome recente: la
+  // verifica è navigator.canShare sul file stesso) l'Excel si passa all'app di posta con la condivisione, già allegato;
+  // altrimenti l'allegato si aggiunge a mano dalla cartella Download.
   const orderTitle = filename.replace(/\.xlsx$/i, '');
   const notaPersonaleVal = document.getElementById('notaPersonale').value.trim();
   const labelInfosPresentHere = LABEL_NOTE_INFO.filter(info => notaPersonaleVal.includes(info.label));
@@ -4963,10 +4980,19 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
     + (labelsSection ? '\n\n' + labelsSection : '')
   );
   pendingMailtoUrl = 'mailto:ordini@polypool.it?subject=' + mailSubject + '&body=' + mailBody;
+  pendingShare = null;
+  try{
+    const f = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    if(navigator.canShare && navigator.share && navigator.canShare({ files: [f] })){
+      pendingShare = { file: f, title: orderTitle, text: 'In allegato l\'ordine ' + orderTitle + '.xlsx pronto per il caricamento SAP.' + (labelsSection ? '\n\n' + labelsSection : '') };
+    }
+  }catch(e){ pendingShare = null; }
   setFileGeneratedState(true);
   clearDraft();
   saveToHistory();
-  showToast("File scaricato. Tocca 'Apri Mail' e allega il file appena scaricato.");
+  showToast(pendingShare
+    ? "File pronto. Tocca «Invia con file allegato»: in posta il destinatario è ordini@polypool.it (lo copio per te)."
+    : "File scaricato. Tocca 'Apri Mail' e allega il file appena scaricato.");
  }catch(err){
    console.error(err);
    alert("Errore durante la generazione/invio del file: " + (err && err.message ? err.message : err));
@@ -5173,12 +5199,31 @@ document.getElementById('btnPdf').addEventListener('click', () => {
   }catch(err){ console.error(err); alert('Errore durante la creazione del PDF: ' + (err && err.message ? err.message : err)); }
 });
 
-document.getElementById('btnOpenMail').addEventListener('click', (e)=>{
+document.getElementById('btnOpenMail').addEventListener('click', async (e)=>{
+  if(pendingShare){
+    const ps = pendingShare;
+    copyTextSync('ordini@polypool.it');          // la condivisione non può indicare il destinatario: si incolla in «A»
+    try{
+      await navigator.share({ files: [ps.file], title: ps.title, text: ps.text });
+      pendingShare = null; pendingMailtoUrl = null;
+      document.getElementById('btnOpenMail').style.display = 'none'; document.getElementById('btnOpenMailPlain').style.display = 'none';
+    }catch(err){
+      if(err && err.name === 'AbortError') return;     // annullato dall'utente: il pulsante resta disponibile
+      console.error(err);
+      alert("Non riesco ad aprire la condivisione del file (" + (err && err.name ? err.name : 'errore') + "). Usa «Apri Mail senza file» e allega a mano il file scaricato.");
+    }
+    return;
+  }
   if(pendingMailtoUrl){
     window.location.href = pendingMailtoUrl;
   }
   e.target.style.display = 'none';
   pendingMailtoUrl = null;
+});
+document.getElementById('btnOpenMailPlain').addEventListener('click', ()=>{
+  if(pendingMailtoUrl){ window.location.href = pendingMailtoUrl; }
+  pendingShare = null; pendingMailtoUrl = null;
+  document.getElementById('btnOpenMail').style.display = 'none'; document.getElementById('btnOpenMailPlain').style.display = 'none';
 });
 
 document.getElementById('pinVersionTag').textContent = 'v. ' + APP_VERSION + ' (' + APP_VERSION_DATE + ')';
