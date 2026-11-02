@@ -878,7 +878,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <button class="btn-red btn-primary-send" id="btnSendPoly" type="button" style="width:100%;">📤 Invia a Poly Pool<span class="btn-sub">PDF con Excel incorporato</span></button>
     <div class="row3" style="margin-top:7px;">
       <button class="btn-ghost btn-compact" id="btnSendCliente" type="button" title="PDF senza Excel">🧾 Cliente (PDF)</button>
-      <button class="btn-ghost btn-compact" id="btnDlXlsx" type="button" title="Copia di sicurezza dell'Excel">⬇️ Excel (copia)</button>
+      <button class="btn-ghost btn-compact" id="btnDlXlsx" type="button" title="Excel dell'ordine: apre la mail a ordini@polypool.it con il testo pronto">✉️ Excel (mail)</button>
       <button class="btn-ghost btn-compact btn-refresh" id="btnRegen" type="button" title="Rigenera l'ordine"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span>Refresh</span></button>
     </div>
   </div>
@@ -1566,7 +1566,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "29.8";
+const APP_VERSION = "29.9";
 const APP_VERSION_DATE = "02.11.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -5333,6 +5333,10 @@ function downloadBlob(blob, filename){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
+function openMailto(to, subject, body){
+  window.location.href = 'mailto:' + (to || '') + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 // Testi dei messaggi: per Poly Pool c'è il promemoria che l'Excel si scarica dal PDF; per il cliente solo la conferma.
 function buildMailTexts(d, kind){
   const [dd, mm, yy] = d.dataOrdine.split('.'), dataStr = dd + '.' + mm + '.' + yy.slice(2);
@@ -5346,6 +5350,15 @@ function buildMailTexts(d, kind){
   const notaPersonaleVal = document.getElementById('notaPersonale').value.trim();
   const labelInfos = LABEL_NOTE_INFO.filter(info => notaPersonaleVal.includes(info.label));
   const labelsSection = buildLabelsMailSection(labelInfos, notaPersonaleVal);
+  if(kind === 'xls'){
+    return {
+      subject: buildFilename().replace(/\.xlsx$/i, ''),
+      text: 'Buongiorno,\n\nin allegato il file Excel dell\'ordine ' + d.nrOrdine + ' del ' + d.dataOrdine + ' per ' + d.committente.nome + ' - ' + d.destinatario.dest
+          + ', nel modello Matrice Libera, pronto per il caricamento in SAP.'
+          + (labelsSection ? '\n\n' + labelsSection : '')
+          + '\n\nCordiali saluti\n' + d.agente
+    };
+  }
   return {
     subject: buildFilename().replace(/\.xlsx$/i, ''),
     text: 'Buongiorno,\n\nin allegato l\'ordine ' + d.nrOrdine + ' del ' + d.dataOrdine + ' per ' + d.committente.nome + ' - ' + d.destinatario.dest + '.'
@@ -5418,7 +5431,7 @@ document.getElementById('btnSendPoly').addEventListener('click', () => withBusy(
   const esito = await sharePdfOrDownload(blob, fname, t.subject, t.text, POLY_PEC_MAIL);
   if(esito === 'scaricato'){
     showToast('PDF scaricato: nella mail allega il file appena scaricato.');
-    setTimeout(() => { window.location.href = 'mailto:' + POLY_PEC_MAIL + '?subject=' + encodeURIComponent(t.subject) + '&body=' + encodeURIComponent(t.text); }, 800);
+    setTimeout(() => openMailto(POLY_PEC_MAIL, t.subject, t.text), 800);
   }
 }));
 document.getElementById('btnSendCliente').addEventListener('click', () => withBusy(async () => {
@@ -5431,13 +5444,28 @@ document.getElementById('btnSendCliente').addEventListener('click', () => withBu
   const fname = buildFilename().replace(' - Ordine ', ' - Conferma ordine ').replace(/\.xlsx$/i, '.pdf');
   const t = buildMailTexts(data, 'cliente');
   const esito = await sharePdfOrDownload(blob, fname, t.subject, t.text, null);
-  if(esito === 'scaricato') showToast('PDF per il cliente scaricato: invialo dalla cartella Download.');
+  if(esito === 'scaricato'){
+    showToast('PDF per il cliente scaricato: nella mail allega il file appena scaricato.');
+    setTimeout(() => openMailto('', t.subject, t.text), 800);       // destinatario vuoto: lo sceglie l'agente
+  }
 }));
 document.getElementById('btnRegen').addEventListener('click', () => { document.getElementById('btnSend').click(); });
-document.getElementById('btnDlXlsx').addEventListener('click', () => {
+document.getElementById('btnDlXlsx').addEventListener('click', () => withBusy(async () => {
   if(!lastXlsx){ showToast("Genera di nuovo l'ordine."); return; }
-  downloadBlob(lastXlsx.blob, lastXlsx.filename); showToast('Excel scaricato (copia di sicurezza).');
-});
+  const data = collectConfermaData(); if(!data) return;
+  const t = buildMailTexts(data, 'xls');
+  const file = new File([lastXlsx.blob], lastXlsx.filename, { type: XLSX_MIME });
+  try{                                            // dove il browser ammette l'Excel (non Chrome su Android) si allega da solo
+    if(navigator.canShare && navigator.share && navigator.canShare({ files: [file] })){
+      const sharing = navigator.share({ files: [file], title: t.subject, text: t.text });
+      copyTextSync(POLY_PEC_MAIL);
+      await sharing; return;
+    }
+  }catch(err){ if(err && err.name === 'AbortError') return; }      // altro errore: si passa all'alternativa
+  downloadBlob(lastXlsx.blob, lastXlsx.filename);
+  showToast("Excel scaricato: nella mail a ordini@polypool.it allega il file appena scaricato.");
+  setTimeout(() => openMailto(POLY_PEC_MAIL, t.subject, t.text), 800);
+}));
 // la barra dei pulsanti cambia altezza: lo spazio in fondo alla pagina la segue
 try{
   const bar = document.getElementById('stickyBar');
