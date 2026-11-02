@@ -378,7 +378,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   .btn-sub{ display:block; font-size:10.5px; font-weight:500; opacity:.88; margin-top:1px; line-height:1.2; }
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .row3{ display:grid; grid-template-columns:1fr 1fr auto; gap:8px; }
+  .row3{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .btn-refresh{ display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:7px 12px; }
   .btn-compact{ padding:7px 4px; font-size:12.5px; font-weight:700; white-space:nowrap; line-height:1.25; }
   .btn-primary-send{ padding:7px 12px; font-size:15px; line-height:1.2; }
@@ -875,14 +875,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
 <div class="sticky-bottom" id="stickyBar">
   <div id="sendGroup" style="display:none;">
-    <button class="btn-red btn-primary-send" id="btnSendPoly" type="button" style="width:100%;">📤 Invia a Poly Pool<span class="btn-sub">PDF con Excel incorporato</span></button>
+    <button class="btn-red btn-primary-send" id="btnSendPoly" type="button" style="width:100%;">📤 Invia di nuovo a Poly Pool<span class="btn-sub">PDF con Excel incorporato</span></button>
     <div class="row3" style="margin-top:7px;">
       <button class="btn-ghost btn-compact" id="btnSendCliente" type="button" title="PDF senza Excel">🧾 Cliente (PDF)</button>
       <button class="btn-ghost btn-compact" id="btnDlXlsx" type="button" title="Excel dell'ordine: apre la mail a ordini@polypool.it con il testo pronto">✉️ Excel (mail)</button>
-      <button class="btn-ghost btn-compact btn-refresh" id="btnRegen" type="button" title="Rigenera l'ordine"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span>Refresh</span></button>
     </div>
   </div>
-  <button class="btn-red" id="btnSend" style="width:100%;">Genera e invia ordine</button>
+  <button class="btn-red" id="btnSend" style="width:100%;">Invia ordine</button>
   <button class="btn-ghost" id="btnPdf" type="button" style="width:100%; margin-top:8px; font-weight:700;">📄 Conferma ordine PDF</button>
   <button class="btn-red" id="btnOpenMail" style="width:100%; display:none; margin-top:8px; background:var(--sap-bar);">📧 Apri Mail</button>
   <button class="btn-ghost" id="btnOpenMailPlain" type="button" style="width:100%; display:none; margin-top:8px;">✉️ Apri Mail senza file (allega a mano)</button>
@@ -1004,7 +1003,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     <div class="qty-prompt-actions">
       <button type="button" id="btnReviewEdit" class="btn-ghost">Modifica</button>
-      <button type="button" id="btnReviewConfirm" class="btn-red">Conferma e Genera</button>
+      <button type="button" id="btnReviewConfirm" class="btn-red">Conferma e invia</button>
     </div>
   </div>
 </div>
@@ -1566,7 +1565,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "29.9";
+const APP_VERSION = "30.1";
 const APP_VERSION_DATE = "02.11.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
@@ -3469,8 +3468,16 @@ let pendingShare = null;
 // Il PDF si passa alla posta con la condivisione del telefono (Chrome su Android lo ammette; l'Excel no); dove non è possibile
 // si scarica e si apre la mail. Per tornare al flusso di prima (Excel scaricato, «Apri Mail», allegato a mano) basta mettere false.
 const INVIO_PDF_CON_EXCEL = true;
+// v30.1: MODO DI INVIO A POLY POOL (si cambia qui, senza altro):
+//   'excel' (predefinito) = «Conferma e invia» scarica l'Excel e apre da sola la mail a ordini@polypool.it con oggetto e testo pronti:
+//                           l'agente allega il file (è il primo tra i recenti del selettore) e invia; l'operatore apre l'Excel e basta.
+//   'pdf'                 = PDF con l'Excel incorporato, passato alla posta con la condivisione (l'operatore lo estrae dal PDF).
+// Dove il telefono ammette la condivisione dell'Excel (non Chrome su Android) nel modo 'excel' l'allegato è automatico.
+const POLY_MODE = 'excel';
 let lastOrderKind = 'ordine';      // 'ordine' | 'etichette' (le richieste di sole etichette non hanno file)
 let lastXlsx = null;               // { blob, filename } dell'ultimo ordine generato
+let lastPoly = null;               // { blob, fname, texts } PDF per Poly Pool dell'ultimo ordine (per «Invia di nuovo»)
+let prep = null;                   // preparazione in background (Excel + PDF) avviata all'apertura del riepilogo
 function refreshMailButtons(){
   const btnMail = document.getElementById('btnOpenMail'), btnPlain = document.getElementById('btnOpenMailPlain');
   if(INVIO_PDF_CON_EXCEL){
@@ -3478,7 +3485,7 @@ function refreshMailButtons(){
     btnPdf.style.display = 'none'; btnPlain.style.display = 'none';
     const showGroup = fileIsCurrent && lastOrderKind === 'ordine';
     grp.style.display = showGroup ? 'block' : 'none';
-    btnSend.style.display = showGroup ? 'none' : '';     // con l'invio nuovo «Rigenera» sta nella riga compatta (btnRegen)
+    btnSend.style.display = fileIsCurrent ? 'none' : '';   // dopo l'invio «Invia ordine» sparisce; torna se l'ordine cambia
     btnSend.style.marginTop = '0';
     if(fileIsCurrent && lastOrderKind === 'etichette'){ btnMail.style.display = 'block'; btnMail.className = 'btn-red'; btnMail.textContent = '📧 Apri Mail (richiesta etichette)'; }
     else btnMail.style.display = 'none';
@@ -3501,12 +3508,11 @@ function setFileGeneratedState(generated){
   fileIsCurrent = generated;
   const btnSend = document.getElementById('btnSend');
   if(generated){
-    btnSend.innerHTML = REFRESH_BTN_HTML;
     btnSend.className = 'btn-ghost';
   } else {
-    btnSend.textContent = 'Genera e invia ordine';
+    btnSend.textContent = 'Invia ordine';
     btnSend.className = 'btn-red';
-    pendingShare = null; lastXlsx = null;
+    pendingShare = null; lastXlsx = null; lastPoly = null;
   }
   refreshMailButtons();
 }
@@ -4932,6 +4938,7 @@ function openReviewOverlay(){
 }
 
 function closeReviewOverlay(){
+  prep = null;
   document.getElementById('reviewOverlay').classList.remove('show');
 }
 document.getElementById('btnReviewX').addEventListener('click', closeReviewOverlay);
@@ -4976,6 +4983,7 @@ document.getElementById('btnSend').addEventListener('click', ()=>{
     if(!proceed) return;
   }
   openReviewOverlay();
+  if(INVIO_PDF_CON_EXCEL) startPrep();     // v30.0: Excel e PDF si preparano mentre si legge il riepilogo
 });
 
 document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>{
@@ -5002,7 +5010,10 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
     pendingShare = null; lastOrderKind = 'etichette';
     setFileGeneratedState(true);
     clearDraft();
-    showToast("Richiesta pronta. Tocca 'Apri Mail' per inviarla.");
+    if(INVIO_PDF_CON_EXCEL){
+      showToast('Richiesta pronta: si apre la mail a ordini@polypool.it.');
+      const url = pendingMailtoUrl; setTimeout(() => goToMailto(url), 500);
+    } else showToast("Richiesta pronta. Tocca 'Apri Mail' per inviarla.");
     return;
   }
 
@@ -5011,20 +5022,32 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
     return;
   }
 
+  if(INVIO_PDF_CON_EXCEL){
+    const btn = document.getElementById('btnReviewConfirm'); btn.disabled = true;
+    try{
+      if(!prep) startPrep();
+      const res = await prep.promise;               // di solito già pronto: l'agente ha letto il riepilogo nel frattempo
+      if(!res || res.error){
+        closeReviewOverlay();
+        if(res && res.error) alert("Errore durante la preparazione dell'ordine: " + (res.error.message || res.error));
+        return;
+      }
+      lastXlsx = { blob: res.xlsxBlob, filename: res.filename }; lastPoly = res.pkg; lastOrderKind = 'ordine'; pendingShare = null;
+      closeReviewOverlay();
+      setFileGeneratedState(true);
+      clearDraft();
+      saveToHistory();
+      if(POLY_MODE === 'pdf') await sendPoly(res.pkg);     // subito il menu di condivisione col PDF (Excel dentro)
+      else await sendExcelMail();                          // Excel scaricato e mail a ordini@ già aperta
+    } finally { btn.disabled = false; }
+    return;
+  }
+
   const blob = await generateFile();
   if(!blob) return;
   closeReviewOverlay();
   const filename = buildFilename();
   const orderRef = document.getElementById('numOrdine').value;
-
-  if(INVIO_PDF_CON_EXCEL){
-    lastXlsx = { blob, filename }; lastOrderKind = 'ordine'; pendingShare = null;
-    setFileGeneratedState(true);
-    clearDraft();
-    saveToHistory();
-    showToast("Ordine pronto. Tocca «Invia a Poly Pool»: il PDF contiene l'Excel per SAP.");
-    return;
-  }
 
   // Scarica sempre il file
   const url = URL.createObjectURL(blob);
@@ -5311,13 +5334,13 @@ document.getElementById('btnOpenMail').addEventListener('click', async (e)=>{
     return;
   }
   if(pendingMailtoUrl){
-    window.location.href = pendingMailtoUrl;
+    goToMailto(pendingMailtoUrl);
   }
   e.target.style.display = 'none';
   pendingMailtoUrl = null;
 });
 document.getElementById('btnOpenMailPlain').addEventListener('click', ()=>{
-  if(pendingMailtoUrl){ window.location.href = pendingMailtoUrl; }
+  if(pendingMailtoUrl){ goToMailto(pendingMailtoUrl); }
   pendingShare = null; pendingMailtoUrl = null;
   document.getElementById('btnOpenMail').style.display = 'none'; document.getElementById('btnOpenMailPlain').style.display = 'none';
 });
@@ -5409,30 +5432,44 @@ async function sharePdfOrDownload(blob, filename, title, text, recipientToCopy){
   downloadBlob(blob, filename);
   return 'scaricato';
 }
+function goToMailto(url){ window.location.href = url; }
+// Preparazione in background: Excel (generateFile) e PDF con l'Excel incorporato per Poly Pool.
+async function buildPolyPackage(xlsxBlob, xlsxName){
+  if(!(window.jspdf && window.jspdf.jsPDF) || !window.PDFLib) throw new Error("le librerie PDF non sono disponibili in questa copia dell'app: riscarica il file più recente.");
+  const data = collectConfermaData(); if(!data) throw new Error('dati dell\'ordine incompleti');
+  data.excelCard = true;
+  const { doc, cardRect } = createConfermaPdf(data);
+  const bytes = await attachExcelToPdf(new Uint8Array(doc.output('arraybuffer')), new Uint8Array(await xlsxBlob.arrayBuffer()), xlsxName, cardRect);
+  return { blob: new Blob([bytes], { type: 'application/pdf' }), fname: buildFilename().replace(/\.xlsx$/i, '.pdf'), texts: buildMailTexts(data, 'poly') };
+}
+function startPrep(){
+  prep = { promise: (async () => {
+    const xlsxBlob = await generateFile(); if(!xlsxBlob) return null;     // se i controlli falliscono generateFile mostra già il messaggio
+    const filename = buildFilename();
+    return { xlsxBlob, filename, pkg: POLY_MODE === 'pdf' ? await buildPolyPackage(xlsxBlob, filename) : null };
+  })().catch(err => { console.error(err); return { error: err }; }) };
+}
+async function sendPoly(pkg){
+  showToast('Scegli la posta. Destinatario ' + POLY_PEC_MAIL + ' (copiato: incollalo in «A»).');
+  const esito = await sharePdfOrDownload(pkg.blob, pkg.fname, pkg.texts.subject, pkg.texts.text, POLY_PEC_MAIL);
+  if(esito === 'scaricato'){
+    showToast('PDF scaricato: nella mail allega il file appena scaricato.');
+    setTimeout(() => openMailto(POLY_PEC_MAIL, pkg.texts.subject, pkg.texts.text), 800);
+  }
+}
 let sendBusy = false;
 async function withBusy(fn){
   if(sendBusy) return; sendBusy = true;
-  const btns = ['btnSendPoly', 'btnSendCliente', 'btnDlXlsx', 'btnRegen'].map(id => document.getElementById(id)); btns.forEach(b => b.disabled = true);
+  const btns = ['btnSendPoly', 'btnSendCliente', 'btnDlXlsx'].map(id => document.getElementById(id)); btns.forEach(b => b.disabled = true);
   try{ await fn(); }
   catch(err){ console.error(err); alert('Errore durante la preparazione del PDF: ' + (err && err.message ? err.message : err)); }
   finally{ sendBusy = false; btns.forEach(b => b.disabled = false); }
 }
 document.getElementById('btnSendPoly').addEventListener('click', () => withBusy(async () => {
-  if(!lastXlsx){ showToast("Genera di nuovo l'ordine."); return; }
-  if(!(window.jspdf && window.jspdf.jsPDF) || !window.PDFLib){ alert("Errore interno: le librerie PDF non sono disponibili in questa copia dell'app. Riscarica il file più recente."); return; }
-  const data = collectConfermaData(); if(!data) return;
-  data.excelCard = true;
-  const { doc, cardRect } = createConfermaPdf(data);
-  const bytes = await attachExcelToPdf(new Uint8Array(doc.output('arraybuffer')), new Uint8Array(await lastXlsx.blob.arrayBuffer()), lastXlsx.filename, cardRect);
-  const blob = new Blob([bytes], { type: 'application/pdf' });
-  const fname = buildFilename().replace(/\.xlsx$/i, '.pdf');
-  const t = buildMailTexts(data, 'poly');
-  showToast('Scegli la posta. Destinatario ' + POLY_PEC_MAIL + ' (copiato: incollalo in «A»).');
-  const esito = await sharePdfOrDownload(blob, fname, t.subject, t.text, POLY_PEC_MAIL);
-  if(esito === 'scaricato'){
-    showToast('PDF scaricato: nella mail allega il file appena scaricato.');
-    setTimeout(() => openMailto(POLY_PEC_MAIL, t.subject, t.text), 800);
-  }
+  if(POLY_MODE === 'pdf'){
+    if(!lastPoly){ showToast("Tocca «Invia ordine» per preparare di nuovo l'ordine."); return; }
+    await sendPoly(lastPoly);
+  } else await sendExcelMail();
 }));
 document.getElementById('btnSendCliente').addEventListener('click', () => withBusy(async () => {
   if(!(window.jspdf && window.jspdf.jsPDF)){ alert("Errore interno: la libreria PDF non è disponibile in questa copia dell'app. Riscarica il file più recente."); return; }
@@ -5449,13 +5486,14 @@ document.getElementById('btnSendCliente').addEventListener('click', () => withBu
     setTimeout(() => openMailto('', t.subject, t.text), 800);       // destinatario vuoto: lo sceglie l'agente
   }
 }));
-document.getElementById('btnRegen').addEventListener('click', () => { document.getElementById('btnSend').click(); });
-document.getElementById('btnDlXlsx').addEventListener('click', () => withBusy(async () => {
-  if(!lastXlsx){ showToast("Genera di nuovo l'ordine."); return; }
+// Excel + mail a ordini@polypool.it: prova la condivisione col file (dove il telefono lo ammette l'allegato è automatico);
+// altrimenti scarica l'Excel e apre la mail con oggetto e testo pronti (l'allegato si aggiunge dai file scaricati).
+async function sendExcelMail(){
+  if(!lastXlsx){ showToast("Tocca «Invia ordine» per preparare di nuovo l'ordine."); return; }
   const data = collectConfermaData(); if(!data) return;
   const t = buildMailTexts(data, 'xls');
   const file = new File([lastXlsx.blob], lastXlsx.filename, { type: XLSX_MIME });
-  try{                                            // dove il browser ammette l'Excel (non Chrome su Android) si allega da solo
+  try{
     if(navigator.canShare && navigator.share && navigator.canShare({ files: [file] })){
       const sharing = navigator.share({ files: [file], title: t.subject, text: t.text });
       copyTextSync(POLY_PEC_MAIL);
@@ -5463,9 +5501,19 @@ document.getElementById('btnDlXlsx').addEventListener('click', () => withBusy(as
     }
   }catch(err){ if(err && err.name === 'AbortError') return; }      // altro errore: si passa all'alternativa
   downloadBlob(lastXlsx.blob, lastXlsx.filename);
-  showToast("Excel scaricato: nella mail a ordini@polypool.it allega il file appena scaricato.");
+  showToast("Excel scaricato: nella mail allega il file appena scaricato (è il primo dei recenti).");
   setTimeout(() => openMailto(POLY_PEC_MAIL, t.subject, t.text), 800);
-}));
+}
+document.getElementById('btnDlXlsx').addEventListener('click', () => withBusy(sendExcelMail));
+function applyPolyMode(){
+  const poly = document.getElementById('btnSendPoly'), xls = document.getElementById('btnDlXlsx'), cli = document.getElementById('btnSendCliente');
+  if(POLY_MODE === 'pdf'){
+    poly.innerHTML = '📤 Invia di nuovo a Poly Pool<span class="btn-sub">PDF con Excel incorporato</span>'; xls.style.display = ''; cli.style.gridColumn = '';
+  } else {
+    poly.innerHTML = '📧 Invia di nuovo a Poly Pool<span class="btn-sub">Excel + mail a ordini@polypool.it</span>'; xls.style.display = 'none'; cli.style.gridColumn = '1 / -1';
+  }
+}
+applyPolyMode();
 // la barra dei pulsanti cambia altezza: lo spazio in fondo alla pagina la segue
 try{
   const bar = document.getElementById('stickyBar');
