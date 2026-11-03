@@ -273,6 +273,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     font-size:clamp(14px, calc(var(--qimg,140px) * .16), 26px); transform:rotate(-10deg); line-height:1;
   }
   .nc-tag{display:inline-block; background:#E07B00; color:#fff; font-size:9.5px; font-weight:800; border-radius:8px; padding:0 6px; margin-left:6px; vertical-align:middle; line-height:15px;}
+  .inord-tag{display:inline-block; background:#1E7B3A; color:#fff; font-size:9.5px; font-weight:800; border-radius:8px; padding:0 6px; margin-left:6px; vertical-align:middle; line-height:15px; white-space:nowrap;}
   .fp-mini{display:inline-block; background:var(--brand-red); color:#fff; font-size:9.5px; font-weight:800; border-radius:8px; padding:0 5px; margin-left:6px; vertical-align:middle; line-height:15px;}
   .fp-stamp{
     position:absolute; top:0; right:-48px; width:clamp(42px, calc(var(--qimg,140px) * .52), 80px); height:clamp(42px, calc(var(--qimg,140px) * .52), 80px);
@@ -1565,8 +1566,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   vv.addEventListener('scroll', syncVV);
   syncVV();
 })();
-const APP_VERSION = "30.1";
-const APP_VERSION_DATE = "02.11.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
+const APP_VERSION = "30.3";
+const APP_VERSION_DATE = "03.11.2026"; // gg.mm.aaaa: data di salvataggio della versione, da aggiornare ad ogni rilascio
 // Giorni lavorativi di consegna suggeriti di default (oggi fisso, negozi centro-nord): se in
 // futuro servirà differenziare per zona/regione, basta cambiare questa logica qui.
 const DEFAULT_LEAD_BUSINESS_DAYS = 4;
@@ -2573,12 +2574,26 @@ function updateOsSuggest(){
   }
 
   if(matches.length === 0){ hideOsSuggest(); return; }
+  // v30.3: articoli già inseriti nell'ordine (non conta la riga che si sta modificando)
+  const inOrd = {};
+  rows.forEach((r, i) => {
+    if(typeof editingRowIndex === 'number' && i === editingRowIndex) return;
+    const k = String(r.match ? r.match.code : r.code).trim().toUpperCase();
+    if(!k) return;
+    inOrd[k] = inOrd[k] || { qty: 0, n: 0 };
+    inOrd[k].qty += parseFloat(r.qtyFinal) || 0; inOrd[k].n++;
+  });
+  const inOrdTag = code => {
+    const o = inOrd[String(code).trim().toUpperCase()]; if(!o) return '';
+    const q = Math.round(o.qty * 100) / 100;
+    return '<span class="inord-tag" title="Già nell\'ordine: ' + q + (o.n > 1 ? ' (in ' + o.n + ' righe)' : '') + '">✓ ×' + q + '</span>';
+  };
   // codice già scritto per intero e nessun'altra alternativa: l'elenco con la sola voce identica a ciò che si è scritto è inutile
   if(matches.length === 1 && String(matches[0].code).toUpperCase() === raw.replace(/\s+/g, '')){ hideOsSuggest(); return; }
   box.innerHTML = matches.map(e => `
     <div class="os-suggest-item" data-code="${e.code}" style="display:flex; align-items:center; gap:8px;">
       <div style="flex:1; min-width:0;">
-        <div class="os-suggest-code">${e.code}${e.fp ? '<span class="fp-mini">FP</span>' : ''}${isNonCodificato(e.code, cliForMatch(e), e.fp) ? '<span class="nc-tag" title="Non codificato per questo cliente">NC</span>' : ''}</div>
+        <div class="os-suggest-code">${e.code}${e.fp ? '<span class="fp-mini">FP</span>' : ''}${isNonCodificato(e.code, cliForMatch(e), e.fp) ? '<span class="nc-tag" title="Non codificato per questo cliente">NC</span>' : ''}${inOrdTag(e.code)}</div>
         <div class="os-suggest-desc">${e.desc || ''}</div>
       </div>
       <div class="row-thumb" style="flex-shrink:0; width:34px; height:34px; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; overflow:hidden;">${suggestPhotoHtml(e.code, e.desc)}</div>
@@ -3471,12 +3486,16 @@ const INVIO_PDF_CON_EXCEL = true;
 // v30.1: MODO DI INVIO A POLY POOL (si cambia qui, senza altro):
 //   'excel' (predefinito) = «Conferma e invia» scarica l'Excel e apre da sola la mail a ordini@polypool.it con oggetto e testo pronti:
 //                           l'agente allega il file (è il primo tra i recenti del selettore) e invia; l'operatore apre l'Excel e basta.
+//   'txt' (v30.2, prova)  = file TXT nel tracciato «Brico Ok» (record T e D) + PDF di riepilogo, allegati da soli dalla condivisione;
+//                           la P.IVA del cliente riconosce la società in SAP (vedi PIVA_COMMITTENTE). Senza P.IVA si usa l'Excel.
 //   'pdf'                 = PDF con l'Excel incorporato, passato alla posta con la condivisione (l'operatore lo estrae dal PDF).
 // Dove il telefono ammette la condivisione dell'Excel (non Chrome su Android) nel modo 'excel' l'allegato è automatico.
-const POLY_MODE = 'excel';
+const POLY_MODE = 'excel';   // v30.3: predefinito 'excel'. 'txt' = PROVA del file ordine «Brico Ok» + PDF (solo clienti con P.IVA nota): SAP non lo accetta ancora
 let lastOrderKind = 'ordine';      // 'ordine' | 'etichette' (le richieste di sole etichette non hanno file)
 let lastXlsx = null;               // { blob, filename } dell'ultimo ordine generato
 let lastPoly = null;               // { blob, fname, texts } PDF per Poly Pool dell'ultimo ordine (per «Invia di nuovo»)
+let lastTxt = null;                // pacchetto TXT dell'ultimo ordine (per «Invia di nuovo»)
+let lastSendKind = 'excel';        // 'excel' | 'pdf' | 'txt': come è stato inviato l'ultimo ordine
 let prep = null;                   // preparazione in background (Excel + PDF) avviata all'apertura del riepilogo
 function refreshMailButtons(){
   const btnMail = document.getElementById('btnOpenMail'), btnPlain = document.getElementById('btnOpenMailPlain');
@@ -3512,7 +3531,7 @@ function setFileGeneratedState(generated){
   } else {
     btnSend.textContent = 'Invia ordine';
     btnSend.className = 'btn-red';
-    pendingShare = null; lastXlsx = null; lastPoly = null;
+    pendingShare = null; lastXlsx = null; lastPoly = null; lastTxt = null;
   }
   refreshMailButtons();
 }
@@ -4872,6 +4891,11 @@ function openReviewOverlay(){
     ['Data Ordine', formatDateIT(dOrdISO)],
     ['Data Consegna', formatDateIT(dConsISO)],
   ];
+  if(INVIO_PDF_CON_EXCEL && POLY_MODE === 'txt' && exportRows().length){
+    const pv = pivaCliente(); const nrLen = String(numOrd || '').trim().length;
+    rowsHtml.push(['File', pv ? 'TXT + PDF (P.IVA ' + pv + ')' : 'Excel (P.IVA cliente non presente)']);
+    if(pv && nrLen > 11) rowsHtml.push(['N. Ordine nel file', String(numOrd).trim().slice(0, 11) + ' (max 11 car.)']);
+  }
   { const shownNote = exportRows().length ? noteXls : note;   // senza righe non si genera l'Excel: conta solo la nota scritta a mano
     if(shownNote) rowsHtml.push([exportRows().length ? 'Note (nel file)' : 'Note', shownNote]); }
   document.getElementById('rvHeaderSection').innerHTML = rowsHtml.map(([label,val])=>
@@ -5032,12 +5056,19 @@ document.getElementById('btnReviewConfirm').addEventListener('click', async ()=>
         if(res && res.error) alert("Errore durante la preparazione dell'ordine: " + (res.error.message || res.error));
         return;
       }
-      lastXlsx = { blob: res.xlsxBlob, filename: res.filename }; lastPoly = res.pkg; lastOrderKind = 'ordine'; pendingShare = null;
+      if(res.kind === 'txt'){
+        lastTxt = res.pkg; lastXlsx = null; lastPoly = null; lastOrderKind = 'ordine'; lastSendKind = 'txt'; pendingShare = null;
+        closeReviewOverlay(); setFileGeneratedState(true); applyPolyMode('txt'); clearDraft(); saveToHistory();
+        await sendTxt(res.pkg);                            // subito il menu di condivisione: TXT (e PDF) già allegati
+        return;
+      }
+      lastXlsx = { blob: res.xlsxBlob, filename: res.filename }; lastPoly = res.pkg; lastTxt = null; lastOrderKind = 'ordine'; lastSendKind = res.kind; pendingShare = null;
       closeReviewOverlay();
       setFileGeneratedState(true);
+      applyPolyMode(res.kind);
       clearDraft();
       saveToHistory();
-      if(POLY_MODE === 'pdf') await sendPoly(res.pkg);     // subito il menu di condivisione col PDF (Excel dentro)
+      if(res.kind === 'pdf') await sendPoly(res.pkg);      // subito il menu di condivisione col PDF (Excel dentro)
       else await sendExcelMail();                          // Excel scaricato e mail a ordini@ già aperta
     } finally { btn.disabled = false; }
     return;
@@ -5373,6 +5404,17 @@ function buildMailTexts(d, kind){
   const notaPersonaleVal = document.getElementById('notaPersonale').value.trim();
   const labelInfos = LABEL_NOTE_INFO.filter(info => notaPersonaleVal.includes(info.label));
   const labelsSection = buildLabelsMailSection(labelInfos, notaPersonaleVal);
+  if(kind === 'txt'){
+    return {
+      subject: buildFilename().replace(/\.xlsx$/i, ''),
+      text: 'Buongiorno,\n\nin allegato l\'ordine ' + d.nrOrdine + ' del ' + d.dataOrdine + ' per ' + d.committente.nome + ' - ' + d.destinatario.dest
+          + ' (file .txt per il caricamento in SAP' + (BRICO_TXT.allegaPdf ? ' e PDF di riepilogo' : '') + ').'
+          + (d.note ? '\n\nNote: ' + d.note : '')
+          + (labelsSection ? '\n\n' + labelsSection : '')
+          + (d.nrOrdineFile && d.nrOrdineFile !== d.nrOrdine ? '\n\n(Nel file il N. Ordine è abbreviato a ' + d.nrOrdineFile + ': massimo 11 caratteri.)' : '')
+          + '\n\nCordiali saluti\n' + d.agente
+    };
+  }
   if(kind === 'xls'){
     return {
       subject: buildFilename().replace(/\.xlsx$/i, ''),
@@ -5433,6 +5475,99 @@ async function sharePdfOrDownload(blob, filename, title, text, recipientToCopy){
   return 'scaricato';
 }
 function goToMailto(url){ window.location.href = url; }
+// ============================================================================
+// v30.2 — FILE ORDINE nel tracciato «Brico Ok»: TXT a record fissi (T testata + D righe), 1034 caratteri per riga,
+// ISO-8859-1, CR/LF. Struttura: specifica del Consorzio Brico Ok (vedi Mappa_Brico_Ok_Z275.xlsx). Prezzi e sconti a zero.
+// La società si riconosce dalla P.IVA del cliente (rt_parivb, pos. 607-617), il destinatario merci dal codice del DB.
+// ============================================================================
+const PIVA_COMMITTENTE = { 'COPRE': '00297340176', 'RIALTO': '05849840151' };   // PROVA: poi la P.IVA si legge dal DB (campo piva di ogni destinazione)
+const BRICO_TXT = {
+  tipdoc: 'OF', coddoc: 'STK',        // tipo e codice documento (come nel file di esempio): da confermare con chi gestisce SAP
+  anatip: '2', anacod: '',            // 1=cliente 2=fornitore; codice (nel file di esempio il nostro codice fornitore presso Brico Ok)
+  shipTo: 'eanmag',                   // dove va il codice destinatario merci del DB (7 cifre): 'eanmag' (pos. 14-28) oppure 'numpro' (pos. 2-10)
+  pivaFornitore: '01796060166',
+  allegaPdf: true                     // oltre al TXT allega il PDF di riepilogo (con le note complete)
+};
+const BRICO_W = 1034;
+function pivaCliente(){
+  const sr = selectedRow || {};
+  const raw = sr.piva ? String(sr.piva) : (PIVA_COMMITTENTE[String(sr.societa || '').trim().toUpperCase()] || '');
+  const dgt = raw.replace(/\D/g, '');
+  return (dgt.length >= 9 && dgt.length <= 11) ? dgt.padStart(11, '0') : '';
+}
+function bricoRecord(){ return new Array(BRICO_W).fill(' '); }
+function bricoPut(rec, from, len, val, numeric){
+  let t = String(val == null ? '' : val).replace(/[\r\n\t]+/g, ' ');
+  if(numeric){ t = t.replace(/\D/g, ''); t = t.length > len ? t.slice(-len) : t.padStart(len, '0'); }
+  else t = t.length > len ? t.slice(0, len) : t.padEnd(len, ' ');
+  for(let i = 0; i < len; i++) rec[from - 1 + i] = t[i];
+}
+function bricoLatin1(str){ const o = new Uint8Array(str.length); for(let i = 0; i < str.length; i++){ const c = str.charCodeAt(i); o[i] = c < 256 ? c : 63; } return o; }
+function bricoTxtBuild(d, piva){
+  const ymd = it => { const [dd, mm, yy] = it.split('.'); return yy + mm + dd; };
+  const shipCod = String(d.destinatario.cod || '');
+  const numpro = BRICO_TXT.shipTo === 'numpro' ? shipCod : String(Math.floor(Date.now() / 1000) % 1e9);
+  const numdoc = String(d.nrOrdineFile || d.nrOrdine || '').trim();
+  const key = rec => {                                  // chiave comune a testata e righe
+    bricoPut(rec, 2, 9, numpro, true);
+    if(BRICO_TXT.shipTo === 'eanmag') bricoPut(rec, 14, 15, shipCod);
+    bricoPut(rec, 29, 2, BRICO_TXT.tipdoc); bricoPut(rec, 31, 3, BRICO_TXT.coddoc);
+    bricoPut(rec, 34, 11, numdoc); bricoPut(rec, 45, 8, ymd(d.dataOrdine), true);
+  };
+  const out = [];
+  const t = bricoRecord(); bricoPut(t, 1, 1, 'T'); key(t);
+  bricoPut(t, 53, 35, d.destinatario.dest);
+  bricoPut(t, 160, 1, BRICO_TXT.anatip); bricoPut(t, 161, 6, BRICO_TXT.anacod);
+  bricoPut(t, 167, 35, 'POLY POOL SPA'); bricoPut(t, 202, 35, 'VIA SOTTOCORNA 21/B'); bricoPut(t, 237, 10, '24020'); bricoPut(t, 247, 25, 'PARRE'); bricoPut(t, 272, 2, 'BG');
+  bricoPut(t, 274, 35, d.committente.nome);
+  bricoPut(t, 381, 10, ymd(d.consegna));
+  bricoPut(t, 556, 3, 'EUR'); bricoPut(t, 559, 16, '0', true); bricoPut(t, 575, 16, '0', true); bricoPut(t, 591, 16, '0', true);
+  bricoPut(t, 607, 11, piva, true); bricoPut(t, 618, 11, BRICO_TXT.pivaFornitore, true);
+  out.push(t.join(''));
+  d.righe.forEach((r, i) => {
+    const x = bricoRecord(); bricoPut(x, 1, 1, 'D'); key(x);
+    bricoPut(x, 53, 4, i + 1, true); bricoPut(x, 57, 5, i + 1, true);
+    bricoPut(x, 62, 20, r.cli); bricoPut(x, 82, 40, r.desc); bricoPut(x, 122, 13, r.ean); bricoPut(x, 135, 30, r.code); bricoPut(x, 165, 3, 'PZ');
+    bricoPut(x, 168, 12, Math.round((parseFloat(r.qty) || 0) * 100000), true);
+    bricoPut(x, 180, 12, '0', true); [192, 196, 200, 204].forEach(p => bricoPut(x, p, 4, '0', true)); bricoPut(x, 208, 16, '0', true);
+    out.push(x.join(''));
+  });
+  return out.join('\r\n') + '\r\n';
+}
+function buildTxtPackage(){
+  const data = collectConfermaData(); if(!data) return null;
+  const piva = pivaCliente(); if(!piva) return null;
+  const dTxt = Object.assign({}, data, { nrOrdineFile: String(data.nrOrdine).trim().slice(0, 11) });
+  data.nrOrdineFile = dTxt.nrOrdineFile;
+  const fname = buildFilename().replace(/\.xlsx$/i, '.txt');
+  const txtBlob = new Blob([bricoLatin1(bricoTxtBuild(dTxt, piva))], { type: 'text/plain' });
+  let pdf = null;
+  if(BRICO_TXT.allegaPdf && window.jspdf && window.jspdf.jsPDF){
+    const { doc } = createConfermaPdf(Object.assign({}, data, { excelCard: false }));
+    pdf = { blob: new Blob([doc.output('arraybuffer')], { type: 'application/pdf' }), name: fname.replace(/\.txt$/i, '.pdf') };
+  }
+  return { txt: { blob: txtBlob, name: fname }, pdf, texts: buildMailTexts(data, 'txt'), piva };
+}
+// Passa alla posta TXT (e PDF) con la condivisione; se i due file insieme non vanno prova il solo TXT; altrimenti scarica e apre la mail.
+async function sendTxt(pkg){
+  showToast('Scegli la posta. Destinatario ' + POLY_PEC_MAIL + ' (copiato: incollalo in «A»).');
+  const files = [new File([pkg.txt.blob], pkg.txt.name, { type: 'text/plain' })];
+  if(pkg.pdf) files.push(new File([pkg.pdf.blob], pkg.pdf.name, { type: 'application/pdf' }));
+  const tries = files.length > 1 ? [files, [files[0]]] : [files];
+  for(const set of tries){
+    let can = false;
+    try{ can = !!(navigator.canShare && navigator.share && navigator.canShare({ files: set })); }catch(e){}
+    if(!can) continue;
+    let sharing;
+    try{ sharing = navigator.share({ files: set, title: pkg.texts.subject, text: pkg.texts.text }); }catch(e0){ sharing = Promise.reject(e0); }
+    copyTextSync(POLY_PEC_MAIL);
+    try{ await sharing; return; }
+    catch(err){ if(err && err.name === 'AbortError') return; console.error(err); }
+  }
+  files.forEach((f, i) => setTimeout(() => downloadBlob(f, f.name), i * 450));
+  showToast('File scaricati: nella mail allega i file appena scaricati.');
+  openMailLater(POLY_PEC_MAIL, pkg.texts.subject, pkg.texts.text, 900 + files.length * 450);
+}
 // Preparazione in background: Excel (generateFile) e PDF con l'Excel incorporato per Poly Pool.
 async function buildPolyPackage(xlsxBlob, xlsxName){
   if(!(window.jspdf && window.jspdf.jsPDF) || !window.PDFLib) throw new Error("le librerie PDF non sono disponibili in questa copia dell'app: riscarica il file più recente.");
@@ -5444,9 +5579,12 @@ async function buildPolyPackage(xlsxBlob, xlsxName){
 }
 function startPrep(){
   prep = { promise: (async () => {
+    if(POLY_MODE === 'txt' && pivaCliente()){                               // file ordine «Brico Ok»: non serve l'Excel
+      const pkg = buildTxtPackage(); return pkg ? { kind: 'txt', pkg } : null;
+    }
     const xlsxBlob = await generateFile(); if(!xlsxBlob) return null;     // se i controlli falliscono generateFile mostra già il messaggio
     const filename = buildFilename();
-    return { xlsxBlob, filename, pkg: POLY_MODE === 'pdf' ? await buildPolyPackage(xlsxBlob, filename) : null };
+    return { kind: POLY_MODE === 'pdf' ? 'pdf' : 'excel', xlsxBlob, filename, pkg: POLY_MODE === 'pdf' ? await buildPolyPackage(xlsxBlob, filename) : null };
   })().catch(err => { console.error(err); return { error: err }; }) };
 }
 async function sendPoly(pkg){
@@ -5454,7 +5592,7 @@ async function sendPoly(pkg){
   const esito = await sharePdfOrDownload(pkg.blob, pkg.fname, pkg.texts.subject, pkg.texts.text, POLY_PEC_MAIL);
   if(esito === 'scaricato'){
     showToast('PDF scaricato: nella mail allega il file appena scaricato.');
-    setTimeout(() => openMailto(POLY_PEC_MAIL, pkg.texts.subject, pkg.texts.text), 800);
+    openMailLater(POLY_PEC_MAIL, pkg.texts.subject, pkg.texts.text, 800);
   }
 }
 let sendBusy = false;
@@ -5466,7 +5604,10 @@ async function withBusy(fn){
   finally{ sendBusy = false; btns.forEach(b => b.disabled = false); }
 }
 document.getElementById('btnSendPoly').addEventListener('click', () => withBusy(async () => {
-  if(POLY_MODE === 'pdf'){
+  if(lastSendKind === 'txt'){
+    if(!lastTxt){ showToast("Tocca «Invia ordine» per preparare di nuovo l'ordine."); return; }
+    await sendTxt(lastTxt);
+  } else if(lastSendKind === 'pdf'){
     if(!lastPoly){ showToast("Tocca «Invia ordine» per preparare di nuovo l'ordine."); return; }
     await sendPoly(lastPoly);
   } else await sendExcelMail();
@@ -5483,32 +5624,51 @@ document.getElementById('btnSendCliente').addEventListener('click', () => withBu
   const esito = await sharePdfOrDownload(blob, fname, t.subject, t.text, null);
   if(esito === 'scaricato'){
     showToast('PDF per il cliente scaricato: nella mail allega il file appena scaricato.');
-    setTimeout(() => openMailto('', t.subject, t.text), 800);       // destinatario vuoto: lo sceglie l'agente
+    openMailLater('', t.subject, t.text, 800);       // destinatario vuoto: lo sceglie l'agente
   }
 }));
 // Excel + mail a ordini@polypool.it: prova la condivisione col file (dove il telefono lo ammette l'allegato è automatico);
 // altrimenti scarica l'Excel e apre la mail con oggetto e testo pronti (l'allegato si aggiunge dai file scaricati).
+// v30.3: apertura automatica della mail.
+// navigator.share() CONSUMA il gesto dell'utente (anche quando poi rifiuta il file): dopo, Chrome blocca l'apertura automatica
+// della mail (mailto:) perché non parte da un tocco. Fuori da iOS Chrome rifiuta sempre il file Excel, quindi lì la condivisione
+// dell'xlsx non si tenta nemmeno: si scarica il file e si apre subito la mail, con il gesto ancora valido.
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let xlsxShareBlocked = !IS_IOS;
+function openMailLater(to, subject, body, delay){
+  setTimeout(() => {
+    openMailto(to, subject, body);
+    // se la mail non prende il posto dell'app, la pagina resta visibile: lo si dice invece di restare senza segnali
+    setTimeout(() => { if(document.visibilityState === 'visible') showToast('Se la mail non si è aperta, tocca di nuovo il pulsante.'); }, 1800);
+  }, delay);
+}
 async function sendExcelMail(){
-  if(!lastXlsx){ showToast("Tocca «Invia ordine» per preparare di nuovo l'ordine."); return; }
+  if(!lastXlsx){                                      // modo txt: l'Excel non è stato preparato, lo si genera ora
+    const blob = await generateFile(); if(!blob) return;
+    lastXlsx = { blob, filename: buildFilename() };
+  }
   const data = collectConfermaData(); if(!data) return;
   const t = buildMailTexts(data, 'xls');
   const file = new File([lastXlsx.blob], lastXlsx.filename, { type: XLSX_MIME });
   try{
-    if(navigator.canShare && navigator.share && navigator.canShare({ files: [file] })){
+    if(!xlsxShareBlocked && navigator.canShare && navigator.share && navigator.canShare({ files: [file] })){
       const sharing = navigator.share({ files: [file], title: t.subject, text: t.text });
       copyTextSync(POLY_PEC_MAIL);
       await sharing; return;
     }
-  }catch(err){ if(err && err.name === 'AbortError') return; }      // altro errore: si passa all'alternativa
+  }catch(err){ if(err && err.name === 'AbortError') return; xlsxShareBlocked = true; }      // rifiutata: si passa all'alternativa e le prossime volte non si riprova
   downloadBlob(lastXlsx.blob, lastXlsx.filename);
   showToast("Excel scaricato: nella mail allega il file appena scaricato (è il primo dei recenti).");
-  setTimeout(() => openMailto(POLY_PEC_MAIL, t.subject, t.text), 800);
+  openMailLater(POLY_PEC_MAIL, t.subject, t.text, 800);
 }
 document.getElementById('btnDlXlsx').addEventListener('click', () => withBusy(sendExcelMail));
-function applyPolyMode(){
+function applyPolyMode(kind){
+  kind = kind || POLY_MODE;
   const poly = document.getElementById('btnSendPoly'), xls = document.getElementById('btnDlXlsx'), cli = document.getElementById('btnSendCliente');
-  if(POLY_MODE === 'pdf'){
+  if(kind === 'pdf'){
     poly.innerHTML = '📤 Invia di nuovo a Poly Pool<span class="btn-sub">PDF con Excel incorporato</span>'; xls.style.display = ''; cli.style.gridColumn = '';
+  } else if(kind === 'txt'){
+    poly.innerHTML = '📧 Invia di nuovo a Poly Pool<span class="btn-sub">File ordine TXT + PDF + mail a ordini@polypool.it</span>'; xls.style.display = ''; cli.style.gridColumn = '';
   } else {
     poly.innerHTML = '📧 Invia di nuovo a Poly Pool<span class="btn-sub">Excel + mail a ordini@polypool.it</span>'; xls.style.display = 'none'; cli.style.gridColumn = '1 / -1';
   }
